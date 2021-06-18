@@ -1,49 +1,44 @@
 
 #include <mq/Plugin.h>
 
+#include "eqlib/WindowOverride.h"
+
+#include <optional>
+
 PreSetup("MQ2EasyFind");
 PLUGIN_VERSION(1.0);
 
-// Update the sort 4 times per second.
-constexpr std::chrono::milliseconds distanceCalcDelay = std::chrono::milliseconds{ 250 };
+// Limit the rate at which we update the distance to findable locations
+constexpr std::chrono::milliseconds distanceCalcDelay = std::chrono::milliseconds{ 100 };
 
-class CFindLocationWnd_ControllerHook : public CXWndControllerHook
+class CFindLocationWndOverride : public WindowOverride<CFindLocationWndOverride, CFindLocationWnd>
 {
-public:
-	virtual void OnProcessFrame() override
-	{
-		CXWndControllerHook::OnProcessFrame();
+	static inline int sm_distanceColumn = -1;
+	static inline std::chrono::steady_clock::time_point sm_lastDistanceUpdate;
 
+public:
+	virtual int OnProcessFrame() override
+	{
 		auto now = std::chrono::steady_clock::now();
-		if (now - m_lastDistanceUpdate > distanceCalcDelay)
+		if (now - sm_lastDistanceUpdate > distanceCalcDelay)
 		{
-			m_lastDistanceUpdate = now;
+			sm_lastDistanceUpdate = now;
 
 			UpdateDistanceColumn();
 		}
+
+		return Super::OnProcessFrame();
 	}
 
-	virtual bool AboutToShow() override
-	{
-		bool result = CXWndControllerHook::AboutToShow();
-		WriteChatf("CFindLocationWnd_ControllerHook::AboutToShow -> %d", result);
-		return result;
-	}
-
-	virtual bool AboutToHide() override
-	{
-		bool result = CXWndControllerHook::AboutToHide();
-		WriteChatf("CFindLocationWnd_ControllerHook::AboutToHide -> %d", result);
-		return result;
-	}
-
-	virtual void WndNotification(CXWnd* sender, uint32_t message, void* data) override
+	virtual int WndNotification(CXWnd* sender, uint32_t message, void* data) override
 	{
 		WriteChatf("CFindLocationWnd_ControllerHook::WndNotification -> sender=%p message=%d data=%p",
 			sender, message, data);
 
 		if (sender == pFindLocationWnd->findLocationList)
 		{
+			CListWnd* locs = pFindLocationWnd->findLocationList;
+
 			if (message == XWM_LCLICK)
 			{
 			}
@@ -52,55 +47,28 @@ public:
 			}
 			else if (message == XWM_COLUMNCLICK)
 			{
+				// CFindLocationWnd will proceed to override our sort with its own, so we'll just perform this
+				// operation in OnProcessFrame.
+				int colIndex = (int)data;
+				if (colIndex == sm_distanceColumn)
+				{
+					locs->SetSortColumn(colIndex);
+					return 0;
+				}
 			}
 			else if (message == XWM_SORTREQUEST)
 			{
 				SListWndSortInfo* si = (SListWndSortInfo*)data;
 
-				if (si->SortCol == m_distanceColumn)
+				if (si->SortCol == sm_distanceColumn)
 				{
 					si->SortResult = static_cast<int>(GetFloatFromString(si->StrLabel2, 0.0f) - GetFloatFromString(si->StrLabel1, 0.0f));
+					return 0;
 				}
 			}
 		}
 
-		CXWndControllerHook::WndNotification(sender, message, data);
-	}
-
-	virtual void OnHooked() override
-	{
-		CListWnd* locs = pFindLocationWnd->findLocationList;
-
-		if (locs->Columns.GetCount() == 2)
-		{
-			m_distanceColumn = locs->AddColumn("Distance", 60, 0, CellTypeBasicText);
-			locs->SetColumnJustification(m_distanceColumn, 0);
-		}
-		else if (locs->Columns.GetCount() == 3 && locs->Columns[2].StrLabel == "Distance")
-		{
-			m_distanceColumn = 2;
-		}
-
-		UpdateDistanceColumn();
-	}
-
-	virtual void OnAboutToUnhook() override
-	{
-		CListWnd* locs = pFindLocationWnd->findLocationList;
-
-		// We can't remove columns (yet), so... just clear out the third column
-		if (m_distanceColumn != -1)
-		{
-			for (int index = 0; index < locs->ItemsArray.GetCount(); ++index)
-			{
-				locs->SetItemText(index, m_distanceColumn, CXStr());
-			}
-
-			locs->SetColumnLabel(2, CXStr());
-		}
-
-
-		m_distanceColumn = -1;
+		return Super::WndNotification(sender, message, data);
 	}
 
 	void UpdateDistanceColumn()
@@ -141,27 +109,58 @@ public:
 				char label[32];
 				sprintf_s(label, 32, "%.2f", distance);
 
-				locs->SetItemText(index, m_distanceColumn, label);
+				locs->SetItemText(index, sm_distanceColumn, label);
 			}
 			else
 			{
-				locs->SetItemText(index, m_distanceColumn, CXStr());
+				locs->SetItemText(index, sm_distanceColumn, CXStr());
 			}
 		}
 
 		// If the distance coloumn is being sorted, update it.
-		if (locs->SortCol == m_distanceColumn)
+		if (locs->SortCol == sm_distanceColumn)
 		{
 			locs->Sort();
 		}
 	}
 
-private:
-	int m_distanceColumn = -1;
-	std::chrono::steady_clock::time_point m_lastDistanceUpdate;
-};
+	static void OnHooked(CFindLocationWndOverride* pWnd)
+	{
+		CListWnd* locs = pWnd->findLocationList;
 
-CFindLocationWnd_ControllerHook* s_findWndHook = nullptr;
+		if (locs->Columns.GetCount() == 2)
+		{
+			sm_distanceColumn = locs->AddColumn("Distance", 60, 0, CellTypeBasicText);
+			locs->SetColumnJustification(sm_distanceColumn, 0);
+		}
+		else if (locs->Columns.GetCount() == 3
+			&& (locs->Columns[2].StrLabel == "Distance" || locs->Columns[2].StrLabel == ""))
+		{
+			sm_distanceColumn = 2;
+			locs->SetColumnLabel(sm_distanceColumn, "Distance");
+		}
+
+		pWnd->UpdateDistanceColumn();
+	}
+
+	static void OnAboutToUnhook(CFindLocationWndOverride* pWnd)
+	{
+		CListWnd* locs = pWnd->findLocationList;
+
+		// We can't remove columns (yet), so... just clear out the third column
+		if (sm_distanceColumn != -1)
+		{
+			for (int index = 0; index < locs->ItemsArray.GetCount(); ++index)
+			{
+				locs->SetItemText(index, sm_distanceColumn, CXStr());
+			}
+
+			locs->SetColumnLabel(sm_distanceColumn, CXStr());
+		}
+
+		sm_distanceColumn = -1;
+	}
+};
 
 /**
  * @fn InitializePlugin
@@ -173,11 +172,10 @@ PLUGIN_API void InitializePlugin()
 {
 	DebugSpewAlways("MQ2EasyFind::Initializing version %f", MQ2Version);
 
-	s_findWndHook = new CFindLocationWnd_ControllerHook();
 	if (pFindLocationWnd)
 	{
-		// Install observer onto the FindLocationWnd
-		s_findWndHook->Hook(pFindLocationWnd);
+		// Install override onto the FindLocationWnd
+		CFindLocationWndOverride::InstallHooks(pFindLocationWnd);
 	}
 }
 
@@ -189,10 +187,6 @@ PLUGIN_API void InitializePlugin()
  */
 PLUGIN_API void ShutdownPlugin()
 {
-	DebugSpewAlways("MQ2EasyFind::Shutting down");
-
-	delete s_findWndHook;
-	s_findWndHook = nullptr;
 }
 
 /**
@@ -208,7 +202,7 @@ PLUGIN_API void ShutdownPlugin()
  */
 PLUGIN_API void OnCleanUI()
 {
-	s_findWndHook->Unhook();
+	CFindLocationWndOverride::RemoveHooks(pFindLocationWnd);
 }
 
 /**
@@ -225,8 +219,7 @@ PLUGIN_API void OnReloadUI()
 {
 	if (pFindLocationWnd)
 	{
-		// Install observer onto the FindLocationWnd
-		s_findWndHook->Hook(pFindLocationWnd);
+		CFindLocationWndOverride::InstallHooks(pFindLocationWnd);
 	}
 }
 
