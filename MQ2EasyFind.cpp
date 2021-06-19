@@ -8,8 +8,49 @@
 PreSetup("MQ2EasyFind");
 PLUGIN_VERSION(1.0);
 
+#define PLUGIN_MSG "\ag[MQ2EasyFind]\ax "
+
 // Limit the rate at which we update the distance to findable locations
 constexpr std::chrono::milliseconds distanceCalcDelay = std::chrono::milliseconds{ 100 };
+
+static bool s_allowFollowPlayerPath = false;
+static bool s_navNextPlayerPath = false;
+static std::chrono::steady_clock::time_point s_playerPathRequestTime = {};
+static bool s_performCommandFind = false;
+static bool s_performGroupCommandFind = false;
+
+bool IsNavLoaded()
+{
+	return GetPlugin("MQ2Nav") != nullptr;
+}
+
+bool IsNavMeshLoaded()
+{
+	using fNavMeshLoaded = bool(*)();
+
+	fNavMeshLoaded isNavMeshLoaded = (fNavMeshLoaded)GetPluginProc("MQ2Nav", "IsNavMeshLoaded");
+	if (isNavMeshLoaded)
+	{
+		return isNavMeshLoaded();
+	}
+
+	return false;
+}
+
+bool ExecuteNavCommand(const char* szLine, bool sendAsGroup)
+{
+	// TODO: support group command.
+
+	using fExecuteNavCommand = bool(*)(const char*);
+
+	fExecuteNavCommand executeNavCommand = (fExecuteNavCommand)GetPluginProc("MQ2Nav", "ExecuteNavCommand");
+	if (executeNavCommand)
+	{
+		return executeNavCommand(szLine);
+	}
+
+	return false;
+}
 
 class CFindLocationWndOverride : public WindowOverride<CFindLocationWndOverride, CFindLocationWnd>
 {
@@ -32,18 +73,30 @@ public:
 
 	virtual int WndNotification(CXWnd* sender, uint32_t message, void* data) override
 	{
-		WriteChatf("CFindLocationWnd_ControllerHook::WndNotification -> sender=%p message=%d data=%p",
-			sender, message, data);
-
-		if (sender == pFindLocationWnd->findLocationList)
+		if (sender == findLocationList)
 		{
-			CListWnd* locs = pFindLocationWnd->findLocationList;
-
 			if (message == XWM_LCLICK)
 			{
-			}
-			else if (message == XWM_RCLICK)
-			{
+				int selectedRow = (int)data;
+
+				// TODO: Configurable keybinds
+				if (pWndMgr->IsCtrlKey() || s_performCommandFind)
+				{
+					bool groupNav = pWndMgr->IsShiftKey() || s_performGroupCommandFind;
+
+					if (FindableReference* ref = GetReferenceForListIndex(selectedRow))
+					{
+						// Try to perform the navigation. If we succeed, bail out. Otherwise trigger the
+						// navigation via player path.
+						if (PerformFindWindowNavigation(ref, groupNav))
+						{
+							Show(false);
+							return 0;
+						}
+					}
+				}
+
+				return Super::WndNotification(sender, message, data);
 			}
 			else if (message == XWM_COLUMNCLICK)
 			{
@@ -52,7 +105,7 @@ public:
 				int colIndex = (int)data;
 				if (colIndex == sm_distanceColumn)
 				{
-					locs->SetSortColumn(colIndex);
+					findLocationList->SetSortColumn(colIndex);
 					return 0;
 				}
 			}
@@ -73,35 +126,16 @@ public:
 
 	void UpdateDistanceColumn()
 	{
-		CListWnd* locs = pFindLocationWnd->findLocationList;
 		CVector3 myPos = { pLocalPlayer->Y, pLocalPlayer->X, pLocalPlayer->Z };
 
-		for (int index = 0; index < locs->ItemsArray.GetCount(); ++index)
+		for (int index = 0; index < findLocationList->ItemsArray.GetCount(); ++index)
 		{
-			int refIndex = (int)locs->GetItemData(index);
-			CFindLocationWnd::FindableReference* ref = pFindLocationWnd->referenceList.FindFirst(refIndex);
+			FindableReference* ref = GetReferenceForListIndex(index);
 			if (!ref)
 				continue;
 
-			CVector3 location;
 			bool found = false;
-
-			// ZoneConnections provide a direct location
-			if (ref->type == FindLocation_Switch || ref->type == FindLocation_Location)
-			{
-				const CFindLocationWnd::FindZoneConnectionData& data = pFindLocationWnd->unfilteredZoneConnectionList[ref->index];
-
-				location = data.location;
-				found = true;
-			}
-			else if (ref->type == FindLocation_Player)
-			{
-				if (PlayerClient* player = GetSpawnByID(ref->index))
-				{
-					found = true;
-					location = CVector3{ player->Y, player->X, player->Z };
-				}
-			}
+			CVector3 location = GetReferencePosition(ref, found);
 
 			if (found)
 			{
@@ -109,19 +143,217 @@ public:
 				char label[32];
 				sprintf_s(label, 32, "%.2f", distance);
 
-				locs->SetItemText(index, sm_distanceColumn, label);
+				findLocationList->SetItemText(index, sm_distanceColumn, label);
 			}
 			else
 			{
-				locs->SetItemText(index, sm_distanceColumn, CXStr());
+				findLocationList->SetItemText(index, sm_distanceColumn, CXStr());
 			}
 		}
 
 		// If the distance coloumn is being sorted, update it.
-		if (locs->SortCol == sm_distanceColumn)
+		if (findLocationList->SortCol == sm_distanceColumn)
 		{
-			locs->Sort();
+			findLocationList->Sort();
 		}
+	}
+
+	FindableReference* GetReferenceForListIndex(int index) const
+	{
+		int refId = (int)findLocationList->GetItemData(index);
+		CFindLocationWnd::FindableReference* ref = referenceList.FindFirst(refId);
+
+		return ref;
+	}
+
+	CVector3 GetReferencePosition(FindableReference* ref, bool& found)
+	{
+		found = false;
+
+		// TODO: Adjust this for custom positions
+		if (ref->type == FindLocation_Player)
+		{
+			if (PlayerClient* pSpawn = GetSpawnByID(ref->index))
+			{
+				found = true;
+				return CVector3(pSpawn->Y, pSpawn->X, pSpawn->Z);
+			}
+		}
+		else if (ref->type == FindLocation_Location || ref->type == FindLocation_Switch)
+		{
+			found = true;
+			const FindZoneConnectionData& zoneConn = unfilteredZoneConnectionList[ref->index];
+			return zoneConn.location;
+		}
+
+		return CVector3();
+	}
+
+	// Returns true if we handled the navigation here. Returns false if we couldn't do it
+	// and that we should let the path get created so we can navigate to it.
+	bool PerformFindWindowNavigation(FindableReference* ref, bool asGroup)
+	{
+		if (!IsNavLoaded())
+		{
+			WriteChatf(PLUGIN_MSG "\arNavigation requires the MQ2Nav plugin to be loaded.");
+			return false;
+		}
+
+		switch (ref->type)
+		{
+		case FindLocation_Player:
+			// In the case that we are finding a spawn, then the index is actually the spawn id,
+			// and we need to look it up.
+			if (PlayerClient* pSpawn = GetSpawnByID(ref->index))
+			{
+				// TODO: Configuration adjustment
+
+				if (pSpawn->Lastname[0] && pSpawn->Type == SPAWN_NPC)
+					WriteChatf(PLUGIN_MSG "Navigating to \aySpawn\ax: \ag%s (%s)", pSpawn->Name, pSpawn->Lastname);
+				else if (pSpawn->Type == SPAWN_PLAYER)
+					WriteChatf(PLUGIN_MSG "Navigating to \ayPlayer:\ax \ag%s", pSpawn->Name);
+				else
+					WriteChatf(PLUGIN_MSG "Navigating to \aySpawn:\ax \ag%s", pSpawn->Name);
+
+				char command[256];
+				sprintf_s(command, "spawn id %d |dist=15 log=warning", ref->index);
+
+				ExecuteNavCommand(command, asGroup);
+				return true;
+			}
+
+			return false;
+
+		case FindLocation_Location:
+		case FindLocation_Switch: {
+			if (ref->index >= (uint32_t)unfilteredZoneConnectionList.GetCount())
+			{
+				WriteChatf(PLUGIN_MSG "\arUnexpected error: zone connection index is out of range!");
+				return false;
+			}
+
+			const FindZoneConnectionData& zoneConn = unfilteredZoneConnectionList[ref->index];
+			char command[256];
+
+			uint32_t switchId = 0;
+			if (ref->type == FindLocation_Switch)
+			{
+				switchId = zoneConn.id;
+			}
+
+			char szLocationName[256];
+			if (zoneConn.zoneIdentifier > 0)
+				sprintf_s(szLocationName, "%s - %d", GetFullZone(zoneConn.zoneId), zoneConn.zoneIdentifier);
+			else
+				strcpy_s(szLocationName, GetFullZone(zoneConn.zoneId));
+
+			CVector3 coord = zoneConn.location;
+
+			// TODO: Configuration to fine tune this location. Maybe we want to use a switch instead, who knows?
+			// GetAdjustedLocation(szLocationName, coords, pSwitch)
+
+			EQSwitch* pSwitch = nullptr;
+			if (switchId)
+			{
+				pSwitch = pSwitchMgr->GetSwitchById(switchId);
+			}
+
+			if (pSwitch)
+			{
+				WriteChatf(PLUGIN_MSG "Navigating to \ayZone Connection\ax: \ag%s\ax (via switch \ao%s\ax)", szLocationName, pSwitch->Name);
+
+				sprintf_s(command, "door id %d click |log=warning", zoneConn.id);
+			}
+			else
+			{
+				WriteChatf(PLUGIN_MSG "Navigating to \ayZone Connection\ax: \ag%s\ax", szLocationName);
+
+				// Adjust z coordinate to the ground
+				coord.Z = pDisplay->GetFloorHeight(coord.X, coord.Y, coord.Z, 2.0f);
+
+				sprintf_s(command, "locyxz %.2f %.2f %.2f |log=warning", coord.X, coord.Y, coord.Z);
+			}
+
+			ExecuteNavCommand(command, asGroup);
+			return true;
+		}
+
+		default:
+			WriteChatf(PLUGIN_MSG "\arCannot navigate to selection type: %d", ref->type);
+			break;
+		}
+
+		return false;
+	}
+
+	void FindLocation(std::string_view searchTerm, bool group)
+	{
+		// TODO: Wait for zone connections.
+		int foundIndex = -1;
+
+		for (int i = 0; i < findLocationList->GetItemCount(); ++i)
+		{
+			CXStr itemText = findLocationList->GetItemText(i, 1);
+			if (ci_equals(itemText, searchTerm))
+			{
+				foundIndex = i;
+				break;
+			}
+		}
+
+		// if didn't find then try a substring search
+		if (foundIndex == -1)
+		{
+			float closestDistance = FLT_MAX;
+			CVector3 myPos = { pLocalPlayer->Y, pLocalPlayer->X, pLocalPlayer->Z };
+			CXStr closest;
+
+			for (int i = 0; i < findLocationList->GetItemCount(); ++i)
+			{
+				CXStr itemText = findLocationList->GetItemText(i, 1);
+				if (ci_find_substr(itemText, searchTerm) != -1)
+				{
+					// Get distance to target.
+					FindableReference* ref = GetReferenceForListIndex(i);
+					if (ref)
+					{
+						bool found = false;
+						CVector3 pos = GetReferencePosition(ref, found);
+						if (found)
+						{
+							float distance = myPos.GetDistanceSquared(pos);
+							if (distance < closestDistance)
+							{
+								closestDistance = distance;
+								foundIndex = i;
+								closest = itemText;
+							}
+						}
+					}
+				}
+			}
+
+			if (foundIndex != -1)
+			{
+				WriteChatf(PLUGIN_MSG "Finding closest point matching \"\ay%.*s\ax\".", searchTerm.length(), searchTerm.data());
+			}
+		}
+
+		if (foundIndex == -1)
+		{
+			WriteChatf(PLUGIN_MSG "Could not find \"\ay%.*s\ax\".", searchTerm.length(), searchTerm.data());
+			return;
+		}
+
+		// Perform navigaiton by triggering a selection in the list.
+		s_performCommandFind = true;
+		s_performGroupCommandFind = group;
+
+		findLocationList->SetCurSel(foundIndex);
+		findLocationList->ParentWndNotification(findLocationList, XWM_LCLICK, (void*)foundIndex);
+
+		s_performCommandFind = false;
+		s_performGroupCommandFind = false;
 	}
 
 	static void OnHooked(CFindLocationWndOverride* pWnd)
@@ -162,6 +394,25 @@ public:
 	}
 };
 
+void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
+{
+	if (!pFindLocationWnd || !pLocalPlayer)
+		return;
+
+	char searchArg[MAX_STRING] = { 0 };
+	GetArg(searchArg, szLine, 1);
+
+	if (szLine[0] == 0)
+	{
+		WriteChatf(PLUGIN_MSG "Usage: /easyfind [search term]");
+		WriteChatf(PLUGIN_MSG "    Searches the Find Window for the given text, either exact or partial match. If found, begins navigation.");
+	}
+
+	// TODO: group command support.
+
+	pFindLocationWnd.get_as<CFindLocationWndOverride>()->FindLocation(searchArg, false);
+}
+
 /**
  * @fn InitializePlugin
  *
@@ -177,6 +428,8 @@ PLUGIN_API void InitializePlugin()
 		// Install override onto the FindLocationWnd
 		CFindLocationWndOverride::InstallHooks(pFindLocationWnd);
 	}
+
+	AddCommand("/easyfind", Command_EasyFind, false, true, true);
 }
 
 /**
@@ -187,6 +440,7 @@ PLUGIN_API void InitializePlugin()
  */
 PLUGIN_API void ShutdownPlugin()
 {
+	RemoveCommand("/easyfind");
 }
 
 /**
