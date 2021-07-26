@@ -81,36 +81,54 @@ struct FindLocationRequestState
 	// The request
 	bool valid = false;
 	int spawnID = 0;
+	int switchID = -1;
 	glm::vec3 location;
-	EQSwitch* pSwitch = nullptr;
 	bool asGroup = false;
+	FindLocationType type;
 	FindableLocation findableLocation;
 
 	// state while processing
+	bool activateSwitch = false;
 };
 
 static FindLocationRequestState s_activeFindState;
 
-bool ExecuteNavCommand(const FindLocationRequestState& request)
+bool ExecuteNavCommand(FindLocationRequestState&& request)
 {
-	s_activeFindState = request;
+	if (!s_nav)
+		return false;
 
-	// spawnID:
-	//sprintf_s(command, "spawn id %d | dist=15 log=warning tag=easyfind", ref->index);
+	s_activeFindState = std::move(request);
 
-	// location:
-	//sprintf_s(command, "locyxz %.2f %.2f %.2f log=warning tag=easyfind", coord.X, coord.Y, coord.Z);
+	char command[256] = { 0 };
 
-	// door?
-	//sprintf_s(command, "door id %d click log=warning tag=easyfind", zoneConn.id);
+	if (s_activeFindState.type == FindLocation_Player)
+	{
+		// nav by spawnID:
+		sprintf_s(command, "spawn id %d | dist=15 log=warning tag=easyfind", s_activeFindState.spawnID);
+	}
+	else if (s_activeFindState.type == FindLocation_Switch || s_activeFindState.type == FindLocation_Location)
+	{
+		if (s_activeFindState.location != glm::vec3())
+		{
+			glm::vec3 loc = s_activeFindState.location;
+			loc.z = pDisplay->GetFloorHeight(loc.x, loc.y, loc.z, 2.0f);
+			sprintf_s(command, "locyxz %.2f %.2f %.2f log=warning tag=easyfind", loc.x, loc.y, loc.z);
 
-	// Adjust z coordinate to the ground
-	//request.location.z = pDisplay->GetFloorHeight(request.location.x, request.location.y, request.location.z, 2.0f);
+			if (s_activeFindState.switchID != -1)
+				s_activeFindState.activateSwitch = true;
+		}
+		else if (s_activeFindState.switchID != -1)
+		{
+			sprintf_s(command, "door id %d click log=warning tag=easyfind", s_activeFindState.switchID);
+		}
+	}
 
-	//if (s_nav)
-	//{
-	//	s_nav->ExecuteNavCommand(szLine);
-	//}
+	if (command[0] != 0)
+	{
+		s_nav->ExecuteNavCommand(command);
+		return true;
+	}
 
 	return false;
 }
@@ -155,8 +173,28 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 	if (commandState.tag != "easyfind")
 		return;
 
-	if (eventType == nav::NavObserverEvent::NavDestinationReached)
+	if (eventType == nav::NavObserverEvent::NavStarted)
 	{
+		s_activeFindState.valid = true;
+	}
+	else if (eventType == nav::NavObserverEvent::NavDestinationReached)
+	{
+		if (s_activeFindState.valid)
+		{
+			// Determine if we have extra steps to perform once we reach the destination.
+			if (s_activeFindState.activateSwitch)
+			{
+				WriteChatf(PLUGIN_MSG "Activating switch: \ag%d", s_activeFindState.switchID);
+
+				EQSwitch* pSwitch = GetSwitchByID(s_activeFindState.switchID);
+				if (pSwitch)
+				{
+					pSwitch->UseSwitch(pLocalPlayer->SpawnID, -1, 0, nullptr);
+				}
+			}
+
+			s_activeFindState.valid = false;
+		}
 	}
 }
 
@@ -427,6 +465,7 @@ public:
 					location.eqZoneConnectionData.zoneId = location.zoneId;
 					location.eqZoneConnectionData.zoneIdentifier = location.zoneIdentifier;
 					location.eqZoneConnectionData.type = location.type;
+					location.eqZoneConnectionData.location = location.location;
 
 					if (location.name.empty())
 					{
@@ -728,10 +767,11 @@ public:
 				FindLocationRequestState request;
 				request.spawnID = ref->index;
 				request.asGroup = asGroup;
+				request.type = ref->type;
 				if (customLocation)
 					request.findableLocation = *customLocation;
 
-				ExecuteNavCommand(request);
+				ExecuteNavCommand(std::move(request));
 				return true;
 			}
 
@@ -767,8 +807,9 @@ public:
 
 			FindLocationRequestState request;
 			request.location = *(glm::vec3*)&zoneConn.location;
-			request.pSwitch = pSwitch;
+			request.switchID = switchId;
 			request.asGroup = asGroup;
+			request.type = ref->type;
 			if (customLocation)
 				request.findableLocation = *customLocation;
 
@@ -781,7 +822,7 @@ public:
 				WriteChatf(PLUGIN_MSG "Navigating to \ayZone Connection\ax: \ag%s\ax", szLocationName);
 			}
 
-			ExecuteNavCommand(request);
+			ExecuteNavCommand(std::move(request));
 			return true;
 		}
 
@@ -808,7 +849,7 @@ public:
 			}
 		}
 
-		// if didn't find then try a substring search
+		// if didn't find then try a substring search, picking the closest match by distance.
 		if (foundIndex == -1)
 		{
 			float closestDistance = FLT_MAX;
@@ -875,6 +916,8 @@ public:
 			return;
 		const char* shortName = zoneInfo->ShortName;
 
+		FindableLocations newLocations;
+
 		try
 		{
 			// Load objects from the AddFindLocations block
@@ -884,7 +927,7 @@ public:
 				YAML::Node zoneNode = addFindLocations[shortName];
 				if (zoneNode.IsDefined())
 				{
-					s_findableLocations = zoneNode.as<FindableLocations>();
+					newLocations = zoneNode.as<FindableLocations>();
 				}
 			}
 		}
@@ -892,8 +935,9 @@ public:
 		{
 			// failed to parse, notify and return
 			WriteChatf(PLUGIN_MSG "\arFailed to load zone settings for %s: %s", shortName, ex.what());
-			return;
 		}
+
+		s_findableLocations = std::move(newLocations);
 	}
 
 	void OnHooked()
@@ -991,6 +1035,16 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 	}
 
 	// TODO: group command support.
+
+	// Try to convert to zone name if a short name was provided.
+	for (EQZoneInfo* pZoneInfo : pWorldData->ZoneArray)
+	{
+		if (pZoneInfo && ci_equals(searchArg, pZoneInfo->ShortName))
+		{
+			strcpy_s(searchArg, pZoneInfo->LongName);
+			break;
+		}
+	}
 
 	pFindLocationWnd.get_as<CFindLocationWndOverride>()->FindLocation(searchArg, false);
 }
