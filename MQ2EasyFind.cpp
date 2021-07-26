@@ -2,16 +2,29 @@
 #include <mq/Plugin.h>
 
 #include "eqlib/WindowOverride.h"
+#include "MQ2Nav/PluginAPI.h"
 
+#include <fstream>
 #include <optional>
+
+#pragma warning( push )
+#pragma warning( disable:4996 )
+#include <yaml-cpp/yaml.h>
+#pragma warning( pop )
 
 PreSetup("MQ2EasyFind");
 PLUGIN_VERSION(1.0);
 
 #define PLUGIN_MSG "\ag[MQ2EasyFind]\ax "
+#define DEBUG_MSGS 0
 
 // Limit the rate at which we update the distance to findable locations
 constexpr std::chrono::milliseconds distanceCalcDelay = std::chrono::milliseconds{ 100 };
+
+// configuration
+static std::string s_configFile;
+static YAML::Node s_configNode;
+static bool s_enableCustomLocations = true;
 
 static bool s_allowFollowPlayerPath = false;
 static bool s_navNextPlayerPath = false;
@@ -19,56 +32,512 @@ static std::chrono::steady_clock::time_point s_playerPathRequestTime = {};
 static bool s_performCommandFind = false;
 static bool s_performGroupCommandFind = false;
 
-bool IsNavLoaded()
-{
-	return GetPlugin("MQ2Nav") != nullptr;
-}
+static const MQColor s_addedLocationColor(255, 192, 64);
+static const MQColor s_modifiedLocationColor(64, 192, 255);
 
-bool IsNavMeshLoaded()
-{
-	using fNavMeshLoaded = bool(*)();
+static nav::NavAPI* s_nav = nullptr;
+static int s_navObserverId = 0;
 
-	fNavMeshLoaded isNavMeshLoaded = (fNavMeshLoaded)GetPluginProc("MQ2Nav", "IsNavMeshLoaded");
-	if (isNavMeshLoaded)
-	{
-		return isNavMeshLoaded();
-	}
+// loaded configuration information
+struct FindableLocation
+{
+	FindLocationType type;
+
+	// for findable locations (zone connections and POIs, optional for switches)
+	CVector3 location;
+	CXStr name;
+
+	// for POIs
+	CXStr description;
+
+	// for zone connections
+	uint32_t switchId = 0;
+	std::string switchName;
+
+	EQZoneIndex zoneId = 0;
+	int zoneIdentifier = 0;
+
+	// if false, we won't replace. only add if it doesn't already exist.
+	bool replace = false;
+
+	// The EQ version of this location, if it exists, and data for the ui
+	CFindLocationWnd::FindZoneConnectionData eqZoneConnectionData;
+	bool skip = false;
+	bool initialized = false;
+	CXStr listCategory;
+	CXStr listDescription;
+};
+
+using FindableLocations = std::vector<FindableLocation>;
+FindableLocations s_findableLocations;
+
+static bool MigrateConfigurationFile(bool force = false);
+static void ReloadSettings();
+
+//============================================================================
+
+struct FindLocationRequestState
+{
+	// The request
+	bool valid = false;
+	int spawnID = 0;
+	glm::vec3 location;
+	EQSwitch* pSwitch = nullptr;
+	bool asGroup = false;
+	FindableLocation findableLocation;
+
+	// state while processing
+};
+
+static FindLocationRequestState s_activeFindState;
+
+bool ExecuteNavCommand(const FindLocationRequestState& request)
+{
+	s_activeFindState = request;
+
+	// spawnID:
+	//sprintf_s(command, "spawn id %d | dist=15 log=warning tag=easyfind", ref->index);
+
+	// location:
+	//sprintf_s(command, "locyxz %.2f %.2f %.2f log=warning tag=easyfind", coord.X, coord.Y, coord.Z);
+
+	// door?
+	//sprintf_s(command, "door id %d click log=warning tag=easyfind", zoneConn.id);
+
+	// Adjust z coordinate to the ground
+	//request.location.z = pDisplay->GetFloorHeight(request.location.x, request.location.y, request.location.z, 2.0f);
+
+	//if (s_nav)
+	//{
+	//	s_nav->ExecuteNavCommand(szLine);
+	//}
 
 	return false;
 }
 
-bool ExecuteNavCommand(const char* szLine, bool sendAsGroup)
+void Navigation_Pulse()
 {
-	// TODO: support group command.
-
-	using fExecuteNavCommand = bool(*)(const char*);
-
-	fExecuteNavCommand executeNavCommand = (fExecuteNavCommand)GetPluginProc("MQ2Nav", "ExecuteNavCommand");
-	if (executeNavCommand)
+	// Check for events to handle
+	if (s_activeFindState.valid)
 	{
-		return executeNavCommand(szLine);
+
+	}
+}
+
+void Navigation_Zoned()
+{
+	// Clear all local navigation state (anything not meant to carry over to the next zone)
+	s_activeFindState.valid = {};
+}
+
+void Navigation_Reset()
+{
+	// Clear all existing navigation state
+	s_activeFindState = {};
+}
+
+void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandState& commandState, void* userData)
+{
+	const char* eventName = "Unknown";
+	switch (eventType)
+	{
+	case nav::NavObserverEvent::NavCanceled: eventName = "CANCELED"; break;
+	case nav::NavObserverEvent::NavPauseChanged: eventName = "PAUSED"; break;
+	case nav::NavObserverEvent::NavStarted: eventName = "STARTED"; break;
+	case nav::NavObserverEvent::NavDestinationReached: eventName = "DESTINATIONREACHED"; break;
+	default: break;
 	}
 
-	return false;
+	WriteChatf("%s", fmt::format(PLUGIN_MSG "Nav Observer: event=\ag{}\ax tag=\ag{}\ax paused=\ag{}\ax destination=\ag({:.2f}, {:.2f}, {:.2f})\ax type=\ag{}\ax", eventName,
+		commandState.tag, commandState.paused, commandState.destination.x, commandState.destination.y, commandState.destination.z,
+		commandState.type).c_str());
+
+	if (commandState.tag != "easyfind")
+		return;
+
+	if (eventType == nav::NavObserverEvent::NavDestinationReached)
+	{
+	}
 }
+
+//============================================================================
 
 class CFindLocationWndOverride : public WindowOverride<CFindLocationWndOverride, CFindLocationWnd>
 {
 	static inline int sm_distanceColumn = -1;
 	static inline std::chrono::steady_clock::time_point sm_lastDistanceUpdate;
 
+	enum class CustomRefType {
+		Added,
+		Modified,
+	};
+
+	// tracks whether the custom locations have been added to the window or not.
+	static inline bool sm_customLocationsAdded = false;
+
+	struct RefData {
+		CustomRefType type = CustomRefType::Added;
+		const FindableLocation* data = nullptr;
+	};
+
+	// container holding our custom ref ids and their types.
+	static inline std::map<int, RefData> sm_customRefs;
+
+	// the original zone connections for values that we overwrote.
+	static inline std::map<int, FindZoneConnectionData> sm_originalZoneConnections;
+
 public:
 	virtual int OnProcessFrame() override
 	{
-		auto now = std::chrono::steady_clock::now();
-		if (now - sm_lastDistanceUpdate > distanceCalcDelay)
+		// The following checks match what OnProcessFrame() does to determine when it is
+		// time to rebuild the ui. We use the same logic and anticipate the rebuild so that
+		// we don't lose our custom connections.
+		if (IsActive())
 		{
-			sm_lastDistanceUpdate = now;
-
-			UpdateDistanceColumn();
+			if (lastUpdateTime + 1000 < pDisplay->TimeStamp)
+			{
+				// What gets cleared:
+				// if playerListDirty is true, the findLocationList is completely cleared, and
+				// rebuilt from the ground up. This means all ref entries are removed and
+				// all list elements are removed.
+				// if playerListDirty, then only group members are changed.
+				if (playerListDirty)
+				{
+					// This will set sm_customLocationsAdded to false, allowing us to re-inject the
+					// data after OnProcessFrame() is called.
+					RemoveCustomLocations();
+				}
+			}
 		}
 
-		return Super::OnProcessFrame();
+		// if didRebuild is true, then this will reset the refs list.
+		int result = Super::OnProcessFrame();
+
+		// Update distance column. this will internally skip work if necessary.
+		UpdateDistanceColumn();
+
+		if (zoneConnectionsRcvd && !sm_customLocationsAdded)
+		{
+			AddCustomLocations(true);
+		}
+
+		return result;
+	}
+
+	virtual bool AboutToShow() override
+	{
+		// Clear selection when showing, to avoid trying to find on appear.
+		if (findLocationList)
+		{
+			findLocationList->CurSel = -1;
+		}
+
+		// AboutToShow will reset the window, so anticipate that and remove our items first.
+		// We'll add them again in OnProcessFrame().
+		RemoveCustomLocations();
+
+		return Super::AboutToShow();
+	}
+
+	virtual int OnZone() override
+	{
+		// Reset any temporary state. When we zone everything is destroyed and we start over.
+		sm_customLocationsAdded = false;
+		sm_customRefs.clear();
+		sm_originalZoneConnections.clear();
+
+		int result = Super::OnZone();
+
+		LoadZoneSettings();
+
+		return result;
+	}
+
+	uint32_t GetAvailableId()
+	{
+		lastId++;
+
+		while (referenceList.FindFirst(lastId))
+			lastId++;
+
+		return lastId;
+	}
+
+	void AddZoneConnection(const FindableLocation& findableLocation)
+	{
+		// Scan items for something with the same name and description. If one exists that matches then we
+		// replace it and mark it as replaced. Otherwise we add a new element.
+		for (int i = 0; i < findLocationList->GetItemCount(); ++i)
+		{
+			if (ci_equals(findLocationList->GetItemText(i, 0), findableLocation.listCategory)
+				&& ci_equals(findLocationList->GetItemText(i, 1), findableLocation.listDescription))
+			{
+				if (!findableLocation.replace)
+				{
+					return;
+				}
+
+				// This is a matching item. Instead of adding a 2nd copy we just replace the entry with our own.
+				// Get the ref from the list. This will give us the index in the zone connections list.
+				int listRefId = (int)findLocationList->GetItemData(i);
+				FindableReference* listRef = referenceList.FindFirst(listRefId);
+
+				// Sanity check the type and then make the copy.
+				if (listRef->type == FindLocation_Switch || listRef->type == FindLocation_Location)
+				{
+					// replacing switch with non-switch
+					if (listRef->type == FindLocation_Switch && findableLocation.type != FindLocation_Switch)
+					{
+					}
+
+					sm_originalZoneConnections[listRef->index] = unfilteredZoneConnectionList[listRef->index];
+					unfilteredZoneConnectionList[listRef->index] = findableLocation.eqZoneConnectionData;
+					sm_customRefs[listRefId] = { CustomRefType::Modified, &findableLocation };
+
+					// Modify the colors
+					UpdateListRowColor(i);
+
+					WriteChatf(PLUGIN_MSG "\ayReplaced %s - %s with custom data", findableLocation.listCategory.c_str(), findableLocation.listDescription.c_str());
+				}
+
+				return;
+			}
+		}
+
+		// add entry to zone connection list
+		unfilteredZoneConnectionList.Add(findableLocation.eqZoneConnectionData);
+		int id = unfilteredZoneConnectionList.GetCount() - 1;
+
+		// add reference
+		uint32_t refId = GetAvailableId();
+		FindableReference& ref = referenceList.Insert(refId);
+		ref.index = id;
+		ref.type = findableLocation.type;
+		sm_customRefs[refId] = { CustomRefType::Added, &findableLocation };
+
+		// update list box
+		SListWndCell cellName;
+		cellName.Text = findableLocation.listCategory;
+		SListWndCell cellDescription;
+		cellDescription.Text = findableLocation.listDescription;
+
+		SListWndLine line;
+		line.Cells.reserve(3); // reserve memory for 3 columns
+		line.Cells.Add(cellName);
+		line.Cells.Add(cellDescription);
+		if (sm_distanceColumn != -1)
+			line.Cells.Add(SListWndCell());
+		line.Data = refId;
+
+		// initialize the color
+		for (SListWndCell& cell : line.Cells)
+			cell.Color = (COLORREF)s_addedLocationColor;
+
+		findLocationList->AddLine(&line);
+
+		WriteChatf(PLUGIN_MSG "\aoAdded %s - %s with id %d", findableLocation.listCategory.c_str(), findableLocation.listDescription.c_str(), refId);
+	}
+
+	void UpdateListRowColor(int row)
+	{
+		int listRefId = (int)findLocationList->GetItemData(row);
+
+		auto iter = sm_customRefs.find(listRefId);
+		if (iter != sm_customRefs.end())
+		{
+			CustomRefType type = iter->second.type;
+			SListWndLine& line = findLocationList->ItemsArray[row];
+
+			for (SListWndCell& cell : line.Cells)
+			{
+				if (type == CustomRefType::Added)
+					cell.Color = (COLORREF)s_addedLocationColor;
+				else if (type == CustomRefType::Modified)
+					cell.Color = (COLORREF)s_modifiedLocationColor;
+			}
+		}
+	}
+
+	void AddCustomLocations(bool initial)
+	{
+		if (sm_customLocationsAdded)
+			return;
+		if (!s_enableCustomLocations)
+			return;
+		if (!pLocalPC)
+			return;
+
+		for (FindableLocation& location : s_findableLocations)
+		{
+			if (!location.initialized)
+			{
+				// Assemble the eq object
+				if (location.type == FindLocation_Switch || location.type == FindLocation_Location)
+				{
+					location.listCategory = "Zone Connection";
+
+					// Search for an existing zone entry that matches this one.
+					for (FindZoneConnectionData& entry : unfilteredZoneConnectionList)
+					{
+						if (entry.zoneId == location.zoneId && entry.zoneIdentifier == location.zoneIdentifier)
+						{
+							// Its a connection representing the same thing.
+							if (location.replace)
+							{
+								// We think we have a Location, but the game has a switch. turn our entry into a switch and copy the switch id
+								if (entry.type == FindLocation_Switch && location.type == FindLocation_Location)
+								{
+									location.type = FindLocation_Switch;
+									location.switchId = entry.id;
+								}
+							}
+							else
+							{
+								location.skip = true;
+							}
+						}
+					}
+
+					if (location.type == FindLocation_Switch)
+					{
+						if (!location.switchName.empty())
+						{
+							// this is our opportunity to override the switch merge above, and turn it back into a location.
+							if (ci_equals(location.switchName, "none"))
+							{
+								location.type = FindLocation_Location;
+							}
+							else
+							{
+								EQSwitch* pSwitch = FindSwitchByName(location.switchName.c_str());
+
+								if (pSwitch)
+								{
+									location.eqZoneConnectionData.id = pSwitch->ID;
+								}
+							}
+						}
+						else
+						{
+							location.eqZoneConnectionData.id = location.switchId;
+						}
+					}
+
+					location.eqZoneConnectionData.subId = 0;
+					location.eqZoneConnectionData.zoneId = location.zoneId;
+					location.eqZoneConnectionData.zoneIdentifier = location.zoneIdentifier;
+					location.eqZoneConnectionData.type = location.type;
+
+					if (location.name.empty())
+					{
+						CXStr name = GetFullZone(location.zoneId);
+						if (location.zoneIdentifier)
+							name.append(fmt::format(" - {}", location.zoneIdentifier));
+						location.listDescription = name;
+					}
+					else
+					{
+						location.listDescription = location.name;
+					}
+				}
+
+				location.initialized = true;
+			}
+
+			if (!location.skip)
+			{
+				AddZoneConnection(location);
+			}
+		}
+
+		sm_customLocationsAdded = true;
+	}
+
+	void RemoveCustomLocations()
+	{
+		if (!sm_customLocationsAdded)
+			return;
+		if (!findLocationList)
+			return;
+
+		int index = 0;
+
+		// Remove all the items from the list that contain entries in our custom refs list.
+		while (index < findLocationList->GetItemCount())
+		{
+			int refId = (int)findLocationList->GetItemData(index);
+			auto iter = sm_customRefs.find(refId);
+			if (iter != sm_customRefs.end())
+			{
+				auto type = iter->second.type;
+				sm_customRefs.erase(iter);
+
+				if (type == CustomRefType::Added)
+				{
+					// This is a custom entry. Remove it completely.
+					findLocationList->RemoveLine(index);
+
+					// Remove the reference too
+					auto refIter = referenceList.find(refId);
+					if (refIter != referenceList.end())
+					{
+						// Remove the element from the zone connection list and fix up any other
+						// refs that tried to index anything after it.
+						auto& refData = refIter->first;
+
+						unfilteredZoneConnectionList.DeleteElement(refData.index);
+						if (refData.type == FindLocation_Location || refData.type == FindLocation_Switch)
+						{
+							// Remove it from the list and decrement any indices that occur after it.
+							for (auto& entry : referenceList)
+							{
+								if (entry.first.index > refData.index)
+								{
+									--entry.first.index;
+								}
+							}
+						}
+
+						referenceList.erase(refIter);
+
+					}
+				}
+				else if (type == CustomRefType::Modified)
+				{
+					// This is a modification to an existing entry. Restore it.
+
+					auto refIter = referenceList.find(refId);
+					if (refIter != referenceList.end())
+					{
+						auto& refData = refIter->first;
+
+						if (refData.type == FindLocation_Location || refData.type == FindLocation_Switch)
+						{
+							int connectionIndex = refData.index;
+
+							// Look the original data and do some sanity checks
+							auto connectionIter = sm_originalZoneConnections.find(connectionIndex);
+							if (connectionIter != sm_originalZoneConnections.end())
+							{
+								if (connectionIndex >= 0 && connectionIndex < unfilteredZoneConnectionList.GetCount())
+								{
+									// replace the content
+									unfilteredZoneConnectionList[connectionIndex] = connectionIter->second;
+								}
+
+								sm_originalZoneConnections.erase(connectionIter);
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				++index;
+			}
+		}
+
+		sm_customLocationsAdded = false;
 	}
 
 	virtual int WndNotification(CXWnd* sender, uint32_t message, void* data) override
@@ -84,15 +553,14 @@ public:
 				{
 					bool groupNav = pWndMgr->IsShiftKey() || s_performGroupCommandFind;
 
-					if (FindableReference* ref = GetReferenceForListIndex(selectedRow))
+					int refId = (int)findLocationList->GetItemData(selectedRow);
+
+					// Try to perform the navigation. If we succeed, bail out. Otherwise trigger the
+					// navigation via player path.
+					if (PerformFindWindowNavigation(refId, groupNav))
 					{
-						// Try to perform the navigation. If we succeed, bail out. Otherwise trigger the
-						// navigation via player path.
-						if (PerformFindWindowNavigation(ref, groupNav))
-						{
-							Show(false);
-							return 0;
-						}
+						Show(false);
+						return 0;
 					}
 				}
 
@@ -126,10 +594,26 @@ public:
 
 	void UpdateDistanceColumn()
 	{
+		auto now = std::chrono::steady_clock::now();
+		bool periodicUpdate = false;
+
+		if (now - sm_lastDistanceUpdate > distanceCalcDelay)
+		{
+			sm_lastDistanceUpdate = now;
+			periodicUpdate = true;
+		}
+
 		CVector3 myPos = { pLocalPlayer->Y, pLocalPlayer->X, pLocalPlayer->Z };
+		bool needsSort = false;
 
 		for (int index = 0; index < findLocationList->ItemsArray.GetCount(); ++index)
 		{
+			// Only update columns if this is a periodic update or if a column is empty.
+			if (!findLocationList->GetItemText(index, sm_distanceColumn).empty() && !periodicUpdate)
+			{
+				continue;
+			}
+
 			FindableReference* ref = GetReferenceForListIndex(index);
 			if (!ref)
 				continue;
@@ -149,10 +633,12 @@ public:
 			{
 				findLocationList->SetItemText(index, sm_distanceColumn, CXStr());
 			}
+
+			needsSort = true;
 		}
 
 		// If the distance coloumn is being sorted, update it.
-		if (findLocationList->SortCol == sm_distanceColumn)
+		if (findLocationList->SortCol == sm_distanceColumn && needsSort)
 		{
 			findLocationList->Sort();
 		}
@@ -161,7 +647,7 @@ public:
 	FindableReference* GetReferenceForListIndex(int index) const
 	{
 		int refId = (int)findLocationList->GetItemData(index);
-		CFindLocationWnd::FindableReference* ref = referenceList.FindFirst(refId);
+		FindableReference* ref = referenceList.FindFirst(refId);
 
 		return ref;
 	}
@@ -181,9 +667,22 @@ public:
 		}
 		else if (ref->type == FindLocation_Location || ref->type == FindLocation_Switch)
 		{
-			found = true;
 			const FindZoneConnectionData& zoneConn = unfilteredZoneConnectionList[ref->index];
-			return zoneConn.location;
+
+			if (ref->type == FindLocation_Location)
+			{
+				found = true;
+				return zoneConn.location;
+			}
+			else
+			{
+				EQSwitch* pSwitch = GetSwitchByID(zoneConn.id);
+				if (pSwitch)
+				{
+					found = true;
+					return CVector3(pSwitch->Y, pSwitch->X, pSwitch->Z);
+				}
+			}
 		}
 
 		return CVector3();
@@ -191,12 +690,25 @@ public:
 
 	// Returns true if we handled the navigation here. Returns false if we couldn't do it
 	// and that we should let the path get created so we can navigate to it.
-	bool PerformFindWindowNavigation(FindableReference* ref, bool asGroup)
+	bool PerformFindWindowNavigation(int refId, bool asGroup)
 	{
-		if (!IsNavLoaded())
+		if (!s_nav)
 		{
 			WriteChatf(PLUGIN_MSG "\arNavigation requires the MQ2Nav plugin to be loaded.");
 			return false;
+		}
+
+		FindableReference* ref = referenceList.FindFirst(refId);
+		if (!ref)
+		{
+			return false;
+		}
+
+		const FindableLocation* customLocation = nullptr;
+		auto customIter = sm_customRefs.find(refId);
+		if (customIter != sm_customRefs.end())
+		{
+			customLocation = customIter->second.data;
 		}
 
 		switch (ref->type)
@@ -206,19 +718,20 @@ public:
 			// and we need to look it up.
 			if (PlayerClient* pSpawn = GetSpawnByID(ref->index))
 			{
-				// TODO: Configuration adjustment
-
 				if (pSpawn->Lastname[0] && pSpawn->Type == SPAWN_NPC)
-					WriteChatf(PLUGIN_MSG "Navigating to \aySpawn\ax: \ag%s (%s)", pSpawn->Name, pSpawn->Lastname);
+					WriteChatf(PLUGIN_MSG "Navigating to \aySpawn\ax: \ag%s (%s)", pSpawn->DisplayedName, pSpawn->Lastname);
 				else if (pSpawn->Type == SPAWN_PLAYER)
-					WriteChatf(PLUGIN_MSG "Navigating to \ayPlayer:\ax \ag%s", pSpawn->Name);
+					WriteChatf(PLUGIN_MSG "Navigating to \ayPlayer:\ax \ag%s", pSpawn->DisplayedName);
 				else
-					WriteChatf(PLUGIN_MSG "Navigating to \aySpawn:\ax \ag%s", pSpawn->Name);
+					WriteChatf(PLUGIN_MSG "Navigating to \aySpawn:\ax \ag%s", pSpawn->DisplayedName);
 
-				char command[256];
-				sprintf_s(command, "spawn id %d |dist=15 log=warning", ref->index);
+				FindLocationRequestState request;
+				request.spawnID = ref->index;
+				request.asGroup = asGroup;
+				if (customLocation)
+					request.findableLocation = *customLocation;
 
-				ExecuteNavCommand(command, asGroup);
+				ExecuteNavCommand(request);
 				return true;
 			}
 
@@ -233,7 +746,6 @@ public:
 			}
 
 			const FindZoneConnectionData& zoneConn = unfilteredZoneConnectionList[ref->index];
-			char command[256];
 
 			uint32_t switchId = 0;
 			if (ref->type == FindLocation_Switch)
@@ -247,34 +759,29 @@ public:
 			else
 				strcpy_s(szLocationName, GetFullZone(zoneConn.zoneId));
 
-			CVector3 coord = zoneConn.location;
-
-			// TODO: Configuration to fine tune this location. Maybe we want to use a switch instead, who knows?
-			// GetAdjustedLocation(szLocationName, coords, pSwitch)
-
 			EQSwitch* pSwitch = nullptr;
 			if (switchId)
 			{
 				pSwitch = pSwitchMgr->GetSwitchById(switchId);
 			}
 
+			FindLocationRequestState request;
+			request.location = *(glm::vec3*)&zoneConn.location;
+			request.pSwitch = pSwitch;
+			request.asGroup = asGroup;
+			if (customLocation)
+				request.findableLocation = *customLocation;
+
 			if (pSwitch)
 			{
 				WriteChatf(PLUGIN_MSG "Navigating to \ayZone Connection\ax: \ag%s\ax (via switch \ao%s\ax)", szLocationName, pSwitch->Name);
-
-				sprintf_s(command, "door id %d click |log=warning", zoneConn.id);
 			}
 			else
 			{
 				WriteChatf(PLUGIN_MSG "Navigating to \ayZone Connection\ax: \ag%s\ax", szLocationName);
-
-				// Adjust z coordinate to the ground
-				coord.Z = pDisplay->GetFloorHeight(coord.X, coord.Y, coord.Z, 2.0f);
-
-				sprintf_s(command, "locyxz %.2f %.2f %.2f |log=warning", coord.X, coord.Y, coord.Z);
 			}
 
-			ExecuteNavCommand(command, asGroup);
+			ExecuteNavCommand(request);
 			return true;
 		}
 
@@ -356,14 +863,62 @@ public:
 		s_performGroupCommandFind = false;
 	}
 
-	static void OnHooked(CFindLocationWndOverride* pWnd)
+	void LoadZoneSettings()
 	{
-		CListWnd* locs = pWnd->findLocationList;
+		RemoveCustomLocations();
+
+		if (!pZoneInfo)
+			return;
+
+		EQZoneInfo* zoneInfo = pWorldData->GetZone(pZoneInfo->ZoneID);
+		if (!zoneInfo)
+			return;
+		const char* shortName = zoneInfo->ShortName;
+
+		try
+		{
+			// Load objects from the AddFindLocations block
+			YAML::Node addFindLocations = s_configNode["FindLocations"];
+			if (addFindLocations.IsMap())
+			{
+				YAML::Node zoneNode = addFindLocations[shortName];
+				if (zoneNode.IsDefined())
+				{
+					s_findableLocations = zoneNode.as<FindableLocations>();
+				}
+			}
+		}
+		catch (const YAML::Exception& ex)
+		{
+			// failed to parse, notify and return
+			WriteChatf(PLUGIN_MSG "\arFailed to load zone settings for %s: %s", shortName, ex.what());
+			return;
+		}
+	}
+
+	void OnHooked()
+	{
+		if (!findLocationList)
+			return;
+
+		CListWnd* locs = findLocationList;
 
 		if (locs->Columns.GetCount() == 2)
 		{
 			sm_distanceColumn = locs->AddColumn("Distance", 60, 0, CellTypeBasicText);
 			locs->SetColumnJustification(sm_distanceColumn, 0);
+
+			// Copy the color from the other columns
+			for (int i = 0; i < locs->GetItemCount(); ++i)
+			{
+				SListWndLine& line = locs->ItemsArray[i];
+				if (line.Cells.GetCount() == 2)
+				{
+					line.Cells.reserve(3);
+					line.Cells.Add(SListWndCell());
+				}
+				line.Cells[sm_distanceColumn].Color = line.Cells[sm_distanceColumn - 1].Color;
+			}
 		}
 		else if (locs->Columns.GetCount() == 3
 			&& (locs->Columns[2].StrLabel == "Distance" || locs->Columns[2].StrLabel == ""))
@@ -372,26 +927,40 @@ public:
 			locs->SetColumnLabel(sm_distanceColumn, "Distance");
 		}
 
-		pWnd->UpdateDistanceColumn();
+		UpdateDistanceColumn();
+		SetWindowText("Find Window (Ctrl+Shift+Click to Navigate)");
+		LoadZoneSettings();
 	}
 
-	static void OnAboutToUnhook(CFindLocationWndOverride* pWnd)
+	void OnAboutToUnhook()
 	{
-		CListWnd* locs = pWnd->findLocationList;
+		if (!findLocationList)
+			return;
 
-		// We can't remove columns (yet), so... just clear out the third column
+		RemoveCustomLocations();
+
+		CListWnd* locs = findLocationList;
 		if (sm_distanceColumn != -1)
 		{
+			locs->Columns.DeleteElement(sm_distanceColumn);
+
 			for (int index = 0; index < locs->ItemsArray.GetCount(); ++index)
 			{
-				locs->SetItemText(index, sm_distanceColumn, CXStr());
-			}
+				if (locs->ItemsArray[index].Cells.GetCount() >= sm_distanceColumn)
+					locs->ItemsArray[index].Cells.DeleteElement(sm_distanceColumn);
 
-			locs->SetColumnLabel(sm_distanceColumn, CXStr());
+				// restore colors
+				locs->ItemsArray[index].Cells[0].Color = (COLORREF)MQColor(255, 255, 255);
+				locs->ItemsArray[index].Cells[1].Color = (COLORREF)MQColor(255, 255, 255);
+			}
 		}
 
+		SetWindowText("Find Window");
 		sm_distanceColumn = -1;
 	}
+
+	static void OnHooked(CFindLocationWndOverride* pWnd) { pWnd->OnHooked(); }
+	static void OnAboutToUnhook(CFindLocationWndOverride* pWnd) { pWnd->OnAboutToUnhook(); }
 };
 
 void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
@@ -406,11 +975,334 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 	{
 		WriteChatf(PLUGIN_MSG "Usage: /easyfind [search term]");
 		WriteChatf(PLUGIN_MSG "    Searches the Find Window for the given text, either exact or partial match. If found, begins navigation.");
+		return;
+	}
+
+	if (ci_equals(searchArg, "migrate"))
+	{
+		MigrateConfigurationFile(true);
+		return;
+	}
+
+	if (ci_equals(searchArg, "reload"))
+	{
+		ReloadSettings();
+		return;
 	}
 
 	// TODO: group command support.
 
 	pFindLocationWnd.get_as<CFindLocationWndOverride>()->FindLocation(searchArg, false);
+}
+
+//----------------------------------------------------------------------------
+
+static bool MigrateConfigurationFile(bool force)
+{
+	if (!pWorldData)
+	{
+		return false; // TODO: Retry later
+	}
+
+	bool migratedAlready = s_configNode["ConfigurationMigrated"].as<bool>(false);
+	if (migratedAlready && !force)
+	{
+		return false;
+	}
+
+	WriteChatf(PLUGIN_MSG "Migrating configuration from INI...");
+	std::string iniFile = (std::filesystem::path(gPathConfig) / "MQ2EasyFind.ini").string();
+
+	int count = 0;
+	std::vector<std::string> sectionNames = GetPrivateProfileSections(iniFile);
+
+	if (!sectionNames.empty())
+	{
+		YAML::Node findLocations = s_configNode["FindLocations"];
+		for (const std::string& sectionName : sectionNames)
+		{
+			std::string zoneShortName = sectionName;
+			MakeLower(zoneShortName);
+
+			YAML::Node overrides = findLocations[zoneShortName];
+
+			std::vector<std::string> keyNames = GetPrivateProfileKeys(zoneShortName, iniFile);
+			for (std::string& keyName : keyNames)
+			{
+				auto splitPos = keyName.rfind(" - ");
+
+				int identifier = 0;
+				std::string_view zoneLongName = keyName;
+
+				if (splitPos != std::string::npos)
+				{
+					identifier = GetIntFromString(zoneLongName.substr(splitPos + 3), 0);
+					if (identifier != 0)
+					{
+						zoneLongName = trim(zoneLongName.substr(0, splitPos));
+					}
+				}
+
+				EQZoneInfo* pZoneInfo = nullptr;
+
+				// Convert long name to short name
+				for (EQZoneInfo* pZone : pWorldData->ZoneArray)
+				{
+					if (pZone && ci_equals(pZone->LongName, zoneLongName))
+					{
+						pZoneInfo = pZone;
+						break;
+					}
+				}
+
+				if (pZoneInfo)
+				{
+					std::string value = GetPrivateProfileString(sectionName, keyName, "", iniFile);
+					if (!value.empty())
+					{
+						std::vector<std::string_view> pieces = split_view(value, ' ', true);
+
+						int switchId = -1;
+						CVector3 position;
+
+						int index = 0;
+						size_t size = pieces.size();
+
+						if (size == 4)
+						{
+							if (starts_with(pieces[index++], "door:"))
+							{
+								// handle door and position (but we don't use position)
+								std::string_view switchNum = pieces[0];
+
+								switchId = GetIntFromString(replace(switchNum, "door:", ""), -1);
+								--size;
+							}
+							else
+							{
+								WriteChatf("\arFailed to migrate section: %s key: %s, invalid value: %s.", sectionName.c_str(), keyName.c_str(), value.c_str());
+								continue;
+							}
+						}
+						else if (size == 3)
+						{
+							// handle position
+							float x = GetFloatFromString(pieces[index], 0.0f);
+							float y = GetFloatFromString(pieces[index + 1], 0.0f);
+							float z = GetFloatFromString(pieces[index + 2], 0.0f);
+
+							position = CVector3(x, y, z);
+						}
+						else
+						{
+							WriteChatf("\arFailed to migrate section: %s key: %s, invalid value: %s.", sectionName.c_str(), keyName.c_str(), value.c_str());
+							continue;
+						}
+
+						YAML::Node obj;
+						obj["type"] = "ZoneConnection";
+
+						if (switchId != -1)
+						{
+							obj["switch"] = switchId;
+						}
+						else
+						{
+							obj["location"] = position;
+						}
+
+						std::string targetZone = pZoneInfo->ShortName;
+						MakeLower(targetZone);
+						obj["targetZone"] = targetZone;
+
+						if (identifier != 0)
+						{
+							obj["identifier"] = identifier;
+						}
+
+						overrides.push_back(obj);
+						count++;
+						continue;
+					}
+				}
+
+				WriteChatf("\arFailed to migrate section: %s key: %s, zone name not found.", sectionName.c_str(), keyName.c_str());
+			}
+		}
+	}
+
+	s_configNode["ConfigurationMigrated"] = true;
+	if (count > 0)
+	{
+		WriteChatf("\agMigrated %d zone connections from MQ2EasyFind.ini", count);
+	}
+	return true;
+}
+
+static void SaveConfigurationFile()
+{
+	std::fstream file(s_configFile, std::ios::out);
+
+	if (!s_configNode.IsNull())
+	{
+		YAML::Emitter y_out;
+		y_out.SetIndent(4);
+		y_out.SetFloatPrecision(3);
+		y_out.SetDoublePrecision(3);
+		y_out << s_configNode;
+
+		file << y_out.c_str();
+	}
+}
+
+namespace YAML
+{
+	template <>
+	struct convert<CVector3> {
+		static Node encode(const CVector3& vec) {
+			Node node;
+			node.push_back(vec.X);
+			node.push_back(vec.Y);
+			node.push_back(vec.Z);
+			return node;
+		}
+
+		static bool decode(const Node& node, CVector3& vec) {
+			if (!node.IsSequence() || node.size() != 3) {
+				return false;
+			}
+			vec.X = node[0].as<float>();
+			vec.Y = node[1].as<float>();
+			vec.Z = node[2].as<float>();
+			return true;
+		}
+	};
+
+	template <>
+	struct convert<FindableLocation> {
+		static Node encode(const FindableLocation& data) {
+			Node node;
+			// todo
+			return node;
+		}
+		static bool decode(const Node& node, FindableLocation& data) {
+			if (!node.IsMap()) {
+				return false;
+			}
+
+			std::string type = node["type"].as<std::string>();
+
+			if (type == "ZoneConnection")
+			{
+				// If a location is provided, then it is a location.
+				if (node["location"].IsDefined())
+				{
+					data.location = node["location"].as<CVector3>();
+					data.type = FindLocation_Location;
+				}
+				else if (node["switch"].IsDefined())
+				{
+					YAML::Node switchNode = node["switch"];
+
+					// first try to read as int, then as string.
+					data.switchId = switchNode.as<int>(0);
+					if (data.switchId == 0)
+					{
+						data.switchName = switchNode.as<std::string>();
+					}
+
+					data.type = FindLocation_Switch;
+				}
+
+				// common props
+
+				// read zone name (or id)
+				int zoneId = node["targetZone"].as<int>(-1);
+				if (zoneId == -1)
+				{
+					zoneId = GetZoneID(node["targetZone"].as<std::string>().c_str());
+				}
+
+				data.zoneId = (EQZoneIndex)zoneId;
+				data.zoneIdentifier = node["identifier"].as<int>(0);
+				data.name = node["name"].as<std::string>(std::string());
+				data.replace = node["replace"].as<bool>(true);
+				return true;
+			}
+			else if (type == "POI")
+			{
+				data.location = node["location"].as<CVector3>();
+				data.name = node["name"].as<std::string>(std::string());
+				data.description = node["description"].as<std::string>(std::string());
+				return true;
+			}
+
+			// other types not supported yet
+			return false;
+		}
+	};
+
+	// std::map
+	template <typename K, typename V, typename C>
+	struct convert<std::map<K, V, C>> {
+		static Node encode(const std::map<K, V, C>& rhs) {
+			Node node(NodeType::Map);
+			for (typename std::map<K, V>::const_iterator it = rhs.begin();
+				it != rhs.end(); ++it)
+				node.force_insert(it->first, it->second);
+			return node;
+		}
+
+		static bool decode(const Node& node, std::map<K, V, C>& rhs) {
+			if (!node.IsMap())
+				return false;
+
+			rhs.clear();
+			for (const_iterator it = node.begin(); it != node.end(); ++it)
+				rhs[it->first.as<K>()] = it->second.as<V>();
+			return true;
+		}
+	};
+}
+
+static void LoadSettings()
+{
+	try
+	{
+		s_configNode = YAML::LoadFile(s_configFile);
+	}
+	catch (const YAML::ParserException& ex)
+	{
+		// failed to parse, notify and return
+		WriteChatf("Failed to parse YAML in %s with %s", s_configFile.c_str(), ex.what());
+		return;
+	}
+	catch (const YAML::BadFile&)
+	{
+		// if we can't read the file, then try to write it with an empty config
+		SaveConfigurationFile();
+		return;
+	}
+}
+
+static void ReloadSettings()
+{
+	WriteChatf(PLUGIN_MSG "Reloading settings");
+	LoadSettings();
+
+	if (pFindLocationWnd)
+	{
+		pFindLocationWnd.get_as<CFindLocationWndOverride>()->LoadZoneSettings();
+	}
+}
+
+void InitializeNavigation()
+{
+	s_nav = nav::GetNavAPIFromPlugin();
+	if (s_nav)
+	{
+		s_navObserverId = s_nav->RegisterNavObserver(NavObserverCallback, nullptr);
+	}
 }
 
 /**
@@ -422,6 +1314,17 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 PLUGIN_API void InitializePlugin()
 {
 	DebugSpewAlways("MQ2EasyFind::Initializing version %f", MQ2Version);
+
+	s_configFile = (std::filesystem::path(gPathConfig) / "MQ2EasyFind.yaml").string();
+	InitializeNavigation();
+
+	LoadSettings();
+
+	if (MigrateConfigurationFile())
+	{
+		SaveConfigurationFile();
+		LoadSettings();
+	}
 
 	if (pFindLocationWnd)
 	{
@@ -441,6 +1344,12 @@ PLUGIN_API void InitializePlugin()
 PLUGIN_API void ShutdownPlugin()
 {
 	RemoveCommand("/easyfind");
+
+	if (s_nav)
+	{
+		s_nav->UnregisterNavObserver(s_navObserverId);
+		s_navObserverId = 0;
+	}
 }
 
 /**
@@ -495,6 +1404,10 @@ PLUGIN_API void OnReloadUI()
  */
 PLUGIN_API void SetGameState(int GameState)
 {
+	if (GameState != GAMESTATE_INGAME)
+	{
+		Navigation_Reset();
+	}
 }
 
 /**
@@ -508,6 +1421,7 @@ PLUGIN_API void SetGameState(int GameState)
  */
 PLUGIN_API void OnPulse()
 {
+	Navigation_Pulse();
 }
 
 /**
@@ -517,7 +1431,6 @@ PLUGIN_API void OnPulse()
  */
 PLUGIN_API void OnBeginZone()
 {
-	// DebugSpewAlways("MQ2EasyFind::OnBeginZone()");
 }
 
 /**
@@ -531,7 +1444,6 @@ PLUGIN_API void OnBeginZone()
  */
 PLUGIN_API void OnEndZone()
 {
-	// DebugSpewAlways("MQ2EasyFind::OnEndZone()");
 }
 
 /**
@@ -544,7 +1456,6 @@ PLUGIN_API void OnEndZone()
  */
 PLUGIN_API void OnZoned()
 {
-	// DebugSpewAlways("MQ2EasyFind::OnZoned()");
 }
 
 /**
@@ -597,6 +1508,10 @@ PLUGIN_API void OnMacroStop(const char* Name)
  */
 PLUGIN_API void OnLoadPlugin(const char* Name)
 {
+	if (ci_equals(Name, "MQ2Nav"))
+	{
+		InitializeNavigation();
+	}
 }
 
 /**
@@ -613,4 +1528,9 @@ PLUGIN_API void OnLoadPlugin(const char* Name)
  */
 PLUGIN_API void OnUnloadPlugin(const char* Name)
 {
+	if (ci_equals(Name, "MQ2Nav"))
+	{
+		s_nav = nullptr;
+		s_navObserverId = 0;
+	}
 }
