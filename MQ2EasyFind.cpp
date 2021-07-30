@@ -2,7 +2,11 @@
 #include <mq/Plugin.h>
 
 #include "eqlib/WindowOverride.h"
+#include "imgui/ImGuiUtils.h"
+#include "imgui/ImGuiTextEditor.h"
+
 #include "MQ2Nav/PluginAPI.h"
+#include "plugins/lua/LuaInterface.h"
 
 #include <fstream>
 #include <optional>
@@ -16,7 +20,13 @@ PreSetup("MQ2EasyFind");
 PLUGIN_VERSION(1.0);
 
 #define PLUGIN_MSG "\ag[MQ2EasyFind]\ax "
-#define DEBUG_MSGS 0
+#define DEBUG_MSGS 1
+
+#if DEBUG_MSG
+#define DebugWritef WriteChatf
+#else
+#define DebugWritef()
+#endif
 
 // Limit the rate at which we update the distance to findable locations
 constexpr std::chrono::milliseconds distanceCalcDelay = std::chrono::milliseconds{ 100 };
@@ -34,31 +44,30 @@ static bool s_performGroupCommandFind = false;
 
 static const MQColor s_addedLocationColor(255, 192, 64);
 static const MQColor s_modifiedLocationColor(64, 192, 255);
+static bool s_showMenu = false;
 
 static nav::NavAPI* s_nav = nullptr;
+static mq::lua::LuaPluginInterface* s_lua = nullptr;
 static int s_navObserverId = 0;
+static imgui::TextEditor* s_luaCodeViewer = nullptr;
 
 // loaded configuration information
 struct FindableLocation
 {
 	FindLocationType type;
-
-	// for findable locations (zone connections and POIs, optional for switches)
 	CVector3 location;
 	CXStr name;
 
-	// for POIs
-	CXStr description;
-
-	// for zone connections
-	uint32_t switchId = 0;
-	std::string switchName;
-
-	EQZoneIndex zoneId = 0;
+	EQZoneIndex zoneId = 0;                   // for zone connections
 	int zoneIdentifier = 0;
 
-	// if false, we won't replace. only add if it doesn't already exist.
-	bool replace = false;
+	int32_t switchId = -1;                    // for switch zone connections
+	std::string switchName;
+
+	std::string luaScript;                    // lua script for zone connections
+
+	bool replace = false;                     // if false, we won't replace. only add if it doesn't already exist.
+
 
 	// The EQ version of this location, if it exists, and data for the ui
 	CFindLocationWnd::FindZoneConnectionData eqZoneConnectionData;
@@ -115,10 +124,10 @@ bool ExecuteNavCommand(FindLocationRequestState&& request)
 			loc.z = pDisplay->GetFloorHeight(loc.x, loc.y, loc.z, 2.0f);
 			sprintf_s(command, "locyxz %.2f %.2f %.2f log=warning tag=easyfind", loc.x, loc.y, loc.z);
 
-			if (s_activeFindState.switchID != -1)
+			if (s_activeFindState.type == FindLocation_Switch)
 				s_activeFindState.activateSwitch = true;
 		}
-		else if (s_activeFindState.switchID != -1)
+		else if (s_activeFindState.type == FindLocation_Switch)
 		{
 			sprintf_s(command, "door id %d click log=warning tag=easyfind", s_activeFindState.switchID);
 		}
@@ -193,6 +202,22 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 				}
 			}
 
+			if (!s_activeFindState.findableLocation.luaScript.empty())
+			{
+				if (s_lua)
+				{
+					WriteChatf(PLUGIN_MSG "\agExecuting script.");
+
+					mq::lua::LuaScriptPtr threadPtr = s_lua->CreateLuaScript();
+					s_lua->InjectMQNamespace(threadPtr);
+					s_lua->ExecuteString(threadPtr, s_activeFindState.findableLocation.luaScript, "easyfind");
+				}
+				else
+				{
+					WriteChatf(PLUGIN_MSG "\arCannot run script because MQ2Lua is not loaded: Unable to complete navigation.");
+				}
+			}
+
 			s_activeFindState.valid = false;
 		}
 	}
@@ -202,6 +227,7 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 
 class CFindLocationWndOverride : public WindowOverride<CFindLocationWndOverride, CFindLocationWnd>
 {
+public:
 	static inline int sm_distanceColumn = -1;
 	static inline std::chrono::steady_clock::time_point sm_lastDistanceUpdate;
 
@@ -224,7 +250,6 @@ class CFindLocationWndOverride : public WindowOverride<CFindLocationWndOverride,
 	// the original zone connections for values that we overwrote.
 	static inline std::map<int, FindZoneConnectionData> sm_originalZoneConnections;
 
-public:
 	virtual int OnProcessFrame() override
 	{
 		// The following checks match what OnProcessFrame() does to determine when it is
@@ -323,11 +348,6 @@ public:
 				// Sanity check the type and then make the copy.
 				if (listRef->type == FindLocation_Switch || listRef->type == FindLocation_Location)
 				{
-					// replacing switch with non-switch
-					if (listRef->type == FindLocation_Switch && findableLocation.type != FindLocation_Switch)
-					{
-					}
-
 					sm_originalZoneConnections[listRef->index] = unfilteredZoneConnectionList[listRef->index];
 					unfilteredZoneConnectionList[listRef->index] = findableLocation.eqZoneConnectionData;
 					sm_customRefs[listRefId] = { CustomRefType::Modified, &findableLocation };
@@ -413,6 +433,8 @@ public:
 				if (location.type == FindLocation_Switch || location.type == FindLocation_Location)
 				{
 					location.listCategory = "Zone Connection";
+					location.eqZoneConnectionData.id = 0;
+					location.eqZoneConnectionData.subId = -1;
 
 					// Search for an existing zone entry that matches this one.
 					for (FindZoneConnectionData& entry : unfilteredZoneConnectionList)
@@ -420,16 +442,7 @@ public:
 						if (entry.zoneId == location.zoneId && entry.zoneIdentifier == location.zoneIdentifier)
 						{
 							// Its a connection representing the same thing.
-							if (location.replace)
-							{
-								// We think we have a Location, but the game has a switch. turn our entry into a switch and copy the switch id
-								if (entry.type == FindLocation_Switch && location.type == FindLocation_Location)
-								{
-									location.type = FindLocation_Switch;
-									location.switchId = entry.id;
-								}
-							}
-							else
+							if (!location.replace)
 							{
 								location.skip = true;
 							}
@@ -440,19 +453,11 @@ public:
 					{
 						if (!location.switchName.empty())
 						{
-							// this is our opportunity to override the switch merge above, and turn it back into a location.
-							if (ci_equals(location.switchName, "none"))
-							{
-								location.type = FindLocation_Location;
-							}
-							else
-							{
-								EQSwitch* pSwitch = FindSwitchByName(location.switchName.c_str());
+							EQSwitch* pSwitch = FindSwitchByName(location.switchName.c_str());
 
-								if (pSwitch)
-								{
-									location.eqZoneConnectionData.id = pSwitch->ID;
-								}
+							if (pSwitch)
+							{
+								location.eqZoneConnectionData.id = pSwitch->ID;
 							}
 						}
 						else
@@ -461,7 +466,6 @@ public:
 						}
 					}
 
-					location.eqZoneConnectionData.subId = 0;
 					location.eqZoneConnectionData.zoneId = location.zoneId;
 					location.eqZoneConnectionData.zoneIdentifier = location.zoneIdentifier;
 					location.eqZoneConnectionData.type = location.type;
@@ -530,7 +534,8 @@ public:
 							// Remove it from the list and decrement any indices that occur after it.
 							for (auto& entry : referenceList)
 							{
-								if (entry.first.index > refData.index)
+								if (entry.first.index > refData.index
+									&& (entry.first.type == FindLocation_Location || entry.first.type == FindLocation_Switch))
 								{
 									--entry.first.index;
 								}
@@ -586,19 +591,29 @@ public:
 			if (message == XWM_LCLICK)
 			{
 				int selectedRow = (int)data;
+				int refId = (int)findLocationList->GetItemData(selectedRow);
 
 				// TODO: Configurable keybinds
 				if (pWndMgr->IsCtrlKey() || s_performCommandFind)
 				{
 					bool groupNav = pWndMgr->IsShiftKey() || s_performGroupCommandFind;
 
-					int refId = (int)findLocationList->GetItemData(selectedRow);
-
 					// Try to perform the navigation. If we succeed, bail out. Otherwise trigger the
 					// navigation via player path.
 					if (PerformFindWindowNavigation(refId, groupNav))
 					{
 						Show(false);
+						return 0;
+					}
+				}
+
+				auto refIter = sm_customRefs.find(refId);
+				if (refIter != sm_customRefs.end())
+				{
+					// Don't "find" custom locations
+					if (refIter->second.type == CustomRefType::Added)
+					{
+						WriteChatf(PLUGIN_MSG "\arCannot find custom locations.");
 						return 0;
 					}
 				}
@@ -695,7 +710,6 @@ public:
 	{
 		found = false;
 
-		// TODO: Adjust this for custom positions
 		if (ref->type == FindLocation_Player)
 		{
 			if (PlayerClient* pSpawn = GetSpawnByID(ref->index))
@@ -708,12 +722,12 @@ public:
 		{
 			const FindZoneConnectionData& zoneConn = unfilteredZoneConnectionList[ref->index];
 
-			if (ref->type == FindLocation_Location)
+			if (zoneConn.location.X != 0.0f && zoneConn.location.Y != 0.0f && zoneConn.location.Z != 0.0f)
 			{
 				found = true;
 				return zoneConn.location;
 			}
-			else
+			else if (ref->type == FindLocation_Switch)
 			{
 				EQSwitch* pSwitch = GetSwitchByID(zoneConn.id);
 				if (pSwitch)
@@ -787,7 +801,7 @@ public:
 
 			const FindZoneConnectionData& zoneConn = unfilteredZoneConnectionList[ref->index];
 
-			uint32_t switchId = 0;
+			int32_t switchId = 0;
 			if (ref->type == FindLocation_Switch)
 			{
 				switchId = zoneConn.id;
@@ -800,7 +814,7 @@ public:
 				strcpy_s(szLocationName, GetFullZone(zoneConn.zoneId));
 
 			EQSwitch* pSwitch = nullptr;
-			if (switchId)
+			if (ref->type == FindLocation_Switch)
 			{
 				pSwitch = pSwitchMgr->GetSwitchById(switchId);
 			}
@@ -1034,6 +1048,12 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
+	if (ci_equals(searchArg, "ui"))
+	{
+		s_showMenu = !s_showMenu;
+		return;
+	}
+
 	// TODO: group command support.
 
 	// Try to convert to zone name if a short name was provided.
@@ -1218,6 +1238,7 @@ namespace YAML
 			node.push_back(vec.X);
 			node.push_back(vec.Y);
 			node.push_back(vec.Z);
+			node.SetStyle(YAML::EmitterStyle::Flow);
 			return node;
 		}
 
@@ -1248,19 +1269,22 @@ namespace YAML
 
 			if (type == "ZoneConnection")
 			{
+				data.type = FindLocation_Location;
+				data.name = node["name"].as<std::string>(std::string());
+
 				// If a location is provided, then it is a location.
 				if (node["location"].IsDefined())
 				{
 					data.location = node["location"].as<CVector3>();
-					data.type = FindLocation_Location;
 				}
-				else if (node["switch"].IsDefined())
+
+				if (node["switch"].IsDefined())
 				{
 					YAML::Node switchNode = node["switch"];
 
 					// first try to read as int, then as string.
-					data.switchId = switchNode.as<int>(0);
-					if (data.switchId == 0)
+					data.switchId = switchNode.as<int>(-1);
+					if (data.switchId == -1)
 					{
 						data.switchName = switchNode.as<std::string>();
 					}
@@ -1268,28 +1292,26 @@ namespace YAML
 					data.type = FindLocation_Switch;
 				}
 
-				// common props
-
 				// read zone name (or id)
 				int zoneId = node["targetZone"].as<int>(-1);
 				if (zoneId == -1)
 				{
 					zoneId = GetZoneID(node["targetZone"].as<std::string>().c_str());
 				}
-
 				data.zoneId = (EQZoneIndex)zoneId;
 				data.zoneIdentifier = node["identifier"].as<int>(0);
-				data.name = node["name"].as<std::string>(std::string());
+
 				data.replace = node["replace"].as<bool>(true);
+				data.luaScript = node["script"].as<std::string>(std::string());
 				return true;
 			}
-			else if (type == "POI")
-			{
-				data.location = node["location"].as<CVector3>();
-				data.name = node["name"].as<std::string>(std::string());
-				data.description = node["description"].as<std::string>(std::string());
-				return true;
-			}
+			//else if (type == "POI")
+			//{
+			//	data.location = node["location"].as<CVector3>();
+			//	data.name = node["name"].as<std::string>(std::string());
+			//	data.description = node["description"].as<std::string>(std::string());
+			//	return true;
+			//}
 
 			// other types not supported yet
 			return false;
@@ -1352,11 +1374,32 @@ static void ReloadSettings()
 
 void InitializeNavigation()
 {
-	s_nav = nav::GetNavAPIFromPlugin();
+	s_nav = (nav::NavAPI*)GetPluginInterface("MQ2Nav");
 	if (s_nav)
 	{
 		s_navObserverId = s_nav->RegisterNavObserver(NavObserverCallback, nullptr);
 	}
+}
+
+void ShutdownNavigation()
+{
+	if (s_nav)
+	{
+		s_nav->UnregisterNavObserver(s_navObserverId);
+		s_navObserverId = 0;
+	}
+
+	s_nav = nullptr;
+}
+
+void InitializeLua()
+{
+	s_lua = (mq::lua::LuaPluginInterface*)GetPluginInterface("MQ2Lua");
+}
+
+void ShutdownLua()
+{
+	s_lua = nullptr;
 }
 
 /**
@@ -1371,6 +1414,7 @@ PLUGIN_API void InitializePlugin()
 
 	s_configFile = (std::filesystem::path(gPathConfig) / "MQ2EasyFind.yaml").string();
 	InitializeNavigation();
+	InitializeLua();
 
 	LoadSettings();
 
@@ -1399,11 +1443,10 @@ PLUGIN_API void ShutdownPlugin()
 {
 	RemoveCommand("/easyfind");
 
-	if (s_nav)
-	{
-		s_nav->UnregisterNavObserver(s_navObserverId);
-		s_navObserverId = 0;
-	}
+	ShutdownNavigation();
+	ShutdownLua();
+
+	delete s_luaCodeViewer;
 }
 
 /**
@@ -1512,6 +1555,44 @@ PLUGIN_API void OnZoned()
 {
 }
 
+static void DrawFindZoneConnectionData(const CFindLocationWnd::FindZoneConnectionData& data)
+{
+	ImGui::Text("Type:"); ImGui::SameLine(0.0f, 4.0f);
+	ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", FindLocationTypeToString(data.type));
+
+	ImGui::Text("Zone ID: %d", data.zoneId);
+
+	ImGui::Text("Zone Name:"); ImGui::SameLine(0.0f, 4.0f);
+	EQZoneInfo* pZoneInfo = pWorldData->GetZone(data.zoneId);
+	if (pZoneInfo)
+	{
+		ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s (%s)", pZoneInfo->LongName, pZoneInfo->ShortName);
+	}
+	else
+	{
+		ImGui::TextColored(MQColor(127, 127, 127).ToImColor(), "(null)");
+	}
+
+	ImGui::Text("Zone Identifier: %d", data.zoneIdentifier);
+
+	ImGui::Text("Location:"); ImGui::SameLine(0.0f, 4.0f);
+	ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "(%.2f, %.2f, %.2f)", data.location.X, data.location.Y, data.location.Z);
+
+	if (data.type == FindLocation_Switch)
+	{
+		ImGui::Text("Switch ID: %d", data.id);
+		if (data.id >= 0)
+		{
+			EQSwitch* pSwitch = GetSwitchByID(data.id);
+			ImGui::Text("Switch Name:"); ImGui::SameLine(0.0f, 4.0f);
+			ImGui::TextColored(pSwitch ? MQColor(0, 255, 0).ToImColor() : MQColor(127, 127, 217).ToImColor(),
+				"%s", pSwitch ? pSwitch->Name : "(null)");
+		}
+	}
+
+	ImGui::Text("Sub ID: %d", data.subId);
+}
+
 /**
  * @fn OnUpdateImGui
  *
@@ -1523,6 +1604,315 @@ PLUGIN_API void OnZoned()
  */
 PLUGIN_API void OnUpdateImGui()
 {
+	if (!s_showMenu)
+		return;
+
+	ImGui::SetNextWindowSize(ImVec2(800, 440), ImGuiCond_FirstUseEver);
+	if (ImGui::Begin("EasyFind Settings", &s_showMenu, ImGuiWindowFlags_MenuBar))
+	{
+		// refs can change, so we need two ways to determine if we're still on the selected item.
+		static int selectedRef = -1;
+		static CFindLocationWnd::FindableReference selectedRefData = { FindLocation_Unknown, 0 };
+		bool changedRef = false;
+
+		if (ImGui::BeginMenuBar())
+		{
+			if (ImGui::BeginMenu("File"))
+			{
+				if (ImGui::MenuItem("Reload Configuration"))
+				{
+					ReloadSettings();
+				}
+
+				ImGui::EndMenu();
+			}
+
+			ImGui::EndMenuBar();
+		}
+
+
+		bool foundSelectedRef = false;
+		CFindLocationWndOverride* findLocWnd = pFindLocationWnd.get_as<CFindLocationWndOverride>();
+
+		ImGui::BeginGroup();
+		{
+			ImGui::BeginChild("Entry List", ImVec2(275, 0), true);
+
+			if (ImGui::BeginTable("##Entries", 2, ImGuiTableFlags_ScrollY))
+			{
+				ImGui::TableSetupColumn("Category");
+				ImGui::TableSetupColumn("Description");
+				ImGui::TableSetupScrollFreeze(0, 1);
+				ImGui::TableHeadersRow();
+
+				if (findLocWnd)
+				{
+					for (int i = 0; i < findLocWnd->findLocationList->GetItemCount(); ++i)
+					{
+						int refId = (int)findLocWnd->findLocationList->GetItemData(i);
+						CFindLocationWnd::FindableReference* ref = findLocWnd->referenceList.FindFirst(refId);
+						if (!ref) continue;
+
+						static char label[256];
+
+						ImGui::PushID(refId);
+
+						CXStr category = findLocWnd->findLocationList->GetItemText(i, 0);
+						CXStr description = findLocWnd->findLocationList->GetItemText(i, 1);
+
+						ImGui::TableNextRow();
+						ImGui::TableNextColumn();
+
+						ImU32 textColor = MQColor(255, 255, 255, 255).ToImU32();
+
+						auto iter = findLocWnd->sm_customRefs.find(refId);
+						if (iter != findLocWnd->sm_customRefs.end())
+						{
+							if (iter->second.type == CFindLocationWndOverride::CustomRefType::Added)
+								textColor = s_addedLocationColor.ToImU32();
+							else if (iter->second.type == CFindLocationWndOverride::CustomRefType::Modified)
+								textColor = s_modifiedLocationColor.ToImU32();
+						}
+
+						ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+
+						bool selected = (selectedRef == refId || *ref == selectedRefData);
+						if (selected)
+						{
+							changedRef = test_and_set(selectedRef, refId);
+							selectedRefData = *ref;
+
+							foundSelectedRef = true;
+						}
+
+						if (ImGui::Selectable(category.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns))
+						{
+							if (selected)
+							{
+								changedRef = test_and_set(selectedRef, refId);
+								selectedRefData = *ref;
+
+								foundSelectedRef = true;
+							}
+						}
+
+						ImGui::TableNextColumn();
+						ImGui::Text("%s", description.c_str());
+						ImGui::PopStyleColor();
+
+						ImGui::PopID();
+					}
+				}
+
+				ImGui::EndTable();
+			}
+
+			ImGui::EndChild();
+		}
+		ImGui::EndGroup();
+
+		if (!foundSelectedRef)
+		{
+			selectedRef = -1;
+			selectedRefData = { FindLocation_Unknown, 0 };
+		}
+
+		ImGui::SameLine();
+
+		ImGui::BeginGroup();
+		{
+			ImGui::BeginChild("Entry Viewer");
+
+			if (selectedRef != -1 && findLocWnd)
+			{
+				CFindLocationWnd::FindableReference* ref = findLocWnd->referenceList.FindFirst(selectedRef);
+				if (ref)
+				{
+					const CFindLocationWnd::FindPlayerData* playerData = nullptr;
+					const CFindLocationWnd::FindZoneConnectionData* zoneConnectionData = nullptr;
+
+					CFindLocationWndOverride::RefData* customRefData = nullptr;
+
+					if (ref->type == FindLocation_Player)
+					{
+						// Find the FindPlayerData with this playerId
+						for (const CFindLocationWnd::FindPlayerData& data : findLocWnd->unfilteredPlayerList)
+						{
+							if (data.spawnId == ref->index)
+							{
+								playerData = &data;
+								break;
+							}
+						}
+					}
+					else if (ref->type == FindLocation_Switch || ref->type == FindLocation_Location)
+					{
+						zoneConnectionData = &findLocWnd->unfilteredZoneConnectionList[ref->index];
+					}
+
+					auto iter = findLocWnd->sm_customRefs.find(selectedRef);
+					if (iter != findLocWnd->sm_customRefs.end())
+					{
+						customRefData = &iter->second;
+					}
+
+					// Render a title
+					char title[256];
+
+					if (playerData)
+					{
+						if (!playerData->description.empty())
+							sprintf_s(title, "%s - %s", playerData->description.c_str(), playerData->name.c_str());
+						else
+							strcpy_s(title, playerData->name.c_str());
+					}
+					else if (zoneConnectionData)
+					{
+						EQZoneInfo* pZoneInfo = pWorldData->GetZone(zoneConnectionData->zoneId);
+						const char* zoneName = pZoneInfo ? pZoneInfo->LongName : "(null)";
+
+						if (zoneConnectionData->zoneIdentifier)
+							sprintf_s(title, "Zone Connection - %s - %d", zoneName, zoneConnectionData->zoneIdentifier);
+						else
+							sprintf_s(title, "Zone Connection - %s", zoneName);
+					}
+
+					ImGui::TextColored(MQColor(255, 255, 0).ToImColor(), title);
+					ImGui::Separator();
+
+					ImGui::Text("Reference ID: %d", selectedRef);
+					ImGui::Text("Status:"); ImGui::SameLine(0.0f, 4.0f);
+					if (customRefData)
+					{
+						if (customRefData->type == CFindLocationWndOverride::CustomRefType::Added)
+							ImGui::TextColored(s_addedLocationColor.ToImColor(), "Added by EasyFind");
+						else if (customRefData->type == CFindLocationWndOverride::CustomRefType::Modified)
+							ImGui::TextColored(s_modifiedLocationColor.ToImColor(), "Modified by EasyFind");
+					}
+					else
+					{
+						ImGui::TextColored(MQColor(127, 127, 127).ToImColor(), "Unmodified");
+					}
+
+					ImGui::NewLine();
+					ImGui::TextColored(MQColor("#D040FF").ToImColor(), "Find Location Data:");
+					ImGui::Separator();
+
+					if (ref->type == FindLocation_Player)
+					{
+						int playerId = ref->index;
+
+						// Find the FindPlayerData with this playerId
+						if (playerData)
+						{
+							ImGui::Text("Name: %s", playerData->name.c_str());
+							ImGui::Text("Description: %s", playerData->description.c_str());
+							ImGui::Text("Spawn ID: %d", playerData->spawnId);
+							ImGui::Text("Race: %d", playerData->race);
+							ImGui::Text("Class: %d", playerData->Class);
+						}
+						else
+						{
+							ImGui::TextColored(MQColor(255, 0, 0).ToImColor(), "Could not find player '%d'", playerId);
+						}
+					}
+					else if (ref->type == FindLocation_Switch || ref->type == FindLocation_Location)
+					{
+						const CFindLocationWnd::FindZoneConnectionData& data = findLocWnd->unfilteredZoneConnectionList[ref->index];
+
+						DrawFindZoneConnectionData(data);
+					}
+					else
+					{
+						ImGui::TextColored(MQColor(255, 0, 0).ToImColor(), "Unhandled location type!");
+					}
+
+					if (customRefData && customRefData->type == CFindLocationWndOverride::CustomRefType::Modified
+						&& (ref->type == FindLocation_Switch || ref->type == FindLocation_Location))
+					{
+						ImGui::NewLine();
+						ImGui::TextColored(MQColor("#D040FF").ToImColor(), "Original Data:");
+						ImGui::Separator();
+
+						auto origIter = findLocWnd->sm_originalZoneConnections.find(ref->index);
+						if (origIter != findLocWnd->sm_originalZoneConnections.end())
+						{
+							const CFindLocationWnd::FindZoneConnectionData& data = origIter->second;
+
+							DrawFindZoneConnectionData(data);
+						}
+						else
+						{
+							ImGui::TextColored(MQColor(255, 0, 0).ToImColor(), "Could not find original data!");
+						}
+					}
+
+					if (customRefData && customRefData->data)
+					{
+						ImGui::NewLine();
+						ImGui::TextColored(MQColor("#D040FF").ToImColor(), "EasyFind Data:");
+						ImGui::Separator();
+
+						if (!s_luaCodeViewer)
+						{
+							s_luaCodeViewer = new imgui::TextEditor();
+							s_luaCodeViewer->SetLanguageDefinition(imgui::texteditor::LanguageDefinition::Lua());
+							s_luaCodeViewer->SetPalette(imgui::TextEditor::GetDarkPalette());
+							s_luaCodeViewer->SetReadOnly(true);
+							s_luaCodeViewer->SetRenderLineNumbers(false);
+							s_luaCodeViewer->SetRenderCursor(false);
+							s_luaCodeViewer->SetShowWhitespace(false);
+						}
+
+						const FindableLocation* data = customRefData->data;
+
+						ImGui::Text("Type:"); ImGui::SameLine(0.0f, 4.0f);
+						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", FindLocationTypeToString(data->type));
+
+						ImGui::Text("Name:"); ImGui::SameLine(0.0f, 4.0f);
+						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", data->name.c_str());
+
+						ImGui::Text("Location:"); ImGui::SameLine(0.0f, 4.0f);
+						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "(%.2f, %.2f, %.2f)", data->location.X, data->location.Y, data->location.Z);
+
+						ImGui::Text("Switch ID: %d", data->switchId);
+						ImGui::Text("Switch Name: %s", data->switchName.c_str());
+
+						EQZoneInfo* pZoneInfo = pWorldData->GetZone(data->zoneId);
+						const char* zoneName = pZoneInfo ? pZoneInfo->ShortName : "(null)";
+
+						ImGui::Text("Target Zone: %s (%d)", zoneName, data->zoneId);
+						ImGui::Text("Zone Identifier: %d", data->zoneIdentifier);
+
+						bool replace = data->replace;
+						ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.6f);
+						ImGui::Checkbox("Replace Original", &replace);
+						ImGui::PopStyleVar();
+
+						if (!data->luaScript.empty())
+						{
+							ImGui::NewLine();
+							ImGui::Text("Lua Script");
+							ImGui::Separator();
+							ImGui::PushFont(imgui::ConsoleFont);
+
+							if (changedRef)
+							{
+								s_luaCodeViewer->SetText(data->luaScript);
+							}
+
+							s_luaCodeViewer->Render("Script", ImGui::GetContentRegionAvail());
+							ImGui::PopFont();
+						}
+					}
+				}
+			}
+
+			ImGui::EndChild();
+		}
+		ImGui::EndGroup();
+	}
+	ImGui::End();
 }
 
 /**
@@ -1566,6 +1956,11 @@ PLUGIN_API void OnLoadPlugin(const char* Name)
 	{
 		InitializeNavigation();
 	}
+
+	if (ci_equals(Name, "MQ2Lua"))
+	{
+		InitializeLua();
+	}
 }
 
 /**
@@ -1584,7 +1979,11 @@ PLUGIN_API void OnUnloadPlugin(const char* Name)
 {
 	if (ci_equals(Name, "MQ2Nav"))
 	{
-		s_nav = nullptr;
-		s_navObserverId = 0;
+		ShutdownNavigation();
+	}
+
+	if (ci_equals(Name, "MQ2Lua"))
+	{
+		ShutdownLua();
 	}
 }
