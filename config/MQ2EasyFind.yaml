@@ -1,0 +1,606 @@
+ConfigurationMigrated: true
+
+FindLocations:
+    arelis:
+        -   type: ZoneConnection
+            switch: 2
+            targetZone: resplendent
+    beholder:
+        -   type: ZoneConnection
+            location: [-1869, 902, 1]
+            targetZone: runnyeye
+    bloodfields:
+        -   type: ZoneConnection
+            location: [1965, 1900, -864]
+            targetZone: dranik
+        -   type: ZoneConnection
+            location: [1965, 1900, -864]
+            targetZone: dranik
+            identifier: 1
+        -   type: ZoneConnection
+            location: [1965, 1900, -864]
+            targetZone: dranik
+            identifier: 2
+    bothunder:
+        -   type: ZoneConnection
+            switch: 67
+            targetZone: potranquility
+    broodlands:
+        -   type: ZoneConnection
+            location: [-1114.35998, -1973.86999, 8.71000003]
+            targetZone: lavastorm
+    burningwood:
+        -   type: ZoneConnection
+            location: [-5070, -788, 201]
+            targetZone: dreadlands
+    butcher:
+        -   type: ZoneConnection
+            location: [3145, -180, 1.87999999]
+            targetZone: kaladima
+        -   type: ZoneConnection
+            location: [1350, 3263, 9.75]
+            targetZone: timorous
+    cityofbronze:
+        -   type: ZoneConnection
+            location: [-950, -2825, 52]
+            targetZone: resplendent
+    commonlands:
+        -   type: ZoneConnection
+            switch: 2
+            targetZone: chapterhouse
+    corathus:
+        -   type: ZoneConnection
+            location: [-390.25, -135.460006, -63.7000007]
+            targetZone: nektulos
+    crescent:
+        -   type: ZoneConnection
+            location: [-880, -2760, -56.5699996]
+            targetZone: moors
+    dawnshroud:
+        -   type: ZoneConnection
+            location: [-711, -2150, 30]
+            targetZone: maiden
+    deadhills:
+        -   type: ZoneConnection
+            switch: 41
+            targetZone: towerofrot
+    drachnidhive:
+        -   type: ZoneConnection
+            location: [283, 1108, 451]
+            targetZone: dreadspire
+    dragonscale:
+        -   type: ZoneConnection
+            switch: 6
+            targetZone: mechanotus
+    dreadspire:
+        -   type: ZoneConnection
+            location: [-1051, 1410.27001, -571]
+            targetZone: drachnidhive
+    dulak:
+        -   type: ZoneConnection
+            location: [-1167, -93, -32]
+            targetZone: deadhills
+    eastkarana:
+        -   type: ZoneConnection
+            location: [-3105, -8340, 690]
+            targetZone: highpasshold
+        -   type: ZoneConnection
+            location: [3635, -2019, 1.75]
+            targetZone: beholder
+    eastkorlach:
+        -   type: ZoneConnection
+            location: [-1125, -1080, 264]
+            targetZone: corathus
+            identifier: 1
+        -   type: ZoneConnection
+            location: [-1318, 760, -17]
+            targetZone: illsalin
+    eastwastes:
+        -   type: ZoneConnection
+            location: [-1780, 6720, 132]
+            targetZone: greatdivide
+    emeraldjungle:
+        -   type: ZoneConnection
+            location: [-1967.98999, 5400, 1]
+            targetZone: fieldofbone
+        -   type: ZoneConnection
+            location: [-3445, 1550, -344]
+            targetZone: trakanon
+    feerrott:
+        -   type: ZoneConnection
+            location: [400, 3410, 6]
+            targetZone: rathemtn
+        -   type: ZoneConnection
+            location: [-1104, -3169, -9]
+            targetZone: innothuleb
+    fieldofbone:
+        -   type: ZoneConnection
+            location: [-2100, -1275, 15]
+            targetZone: emeraldjungle
+        -   type: ZoneConnection
+            location: [-3390, 951, 15]
+            targetZone: swampofnohope
+            identifier: 1
+        -   type: ZoneConnection
+            location: [1440, 4350, 7]
+            targetZone: warslikswood
+            identifier: 1
+        -   type: ZoneConnection
+            location: [1552.60998, 4350, 15]
+            targetZone: warslikswood
+            identifier: 2
+    firiona:
+        -   type: ZoneConnection
+            location: [1245.11999, 3538.5, 206.100006]
+            targetZone: lakeofillomen
+        -   type: ZoneConnection
+            location: [5011.12011, -2670, -0.0700000002]
+            targetZone: swampofnohope
+            identifier: 1
+        -   type: ZoneConnection
+            location: [5011.12011, -2630, -0.0700000002]
+            targetZone: swampofnohope
+            identifier: 2
+        -   type: ZoneConnection
+            location: [5011.12011, -2170, -8.06999969]
+            targetZone: swampofnohope
+            identifier: 3
+        -   type: ZoneConnection
+            location: [4950, 2696.37988, 2.05999994]
+            targetZone: swampofnohope
+            identifier: 4
+    freeportwest:
+        -   type: ZoneConnection
+            location: [290, -1730, -112]
+            targetZone: freporte
+            identifier: 1
+        -   type: ZoneConnection
+            location: [-100, -1515, -137]
+            targetZone: freporte
+            identifier: 2
+        -   type: ZoneConnection
+            location: [38.4900016, 410.920013, -17.3899993]
+            targetZone: commonlands
+    frontiermtns:
+        -   type: ZoneConnection
+            location: [-2335, 4280, -454.459991]
+            targetZone: burningwood
+    greatdivide:
+        -   type: ZoneConnection
+            location: [-1775, -5208, 114]
+            targetZone: eastwastes
+        -   type: ZoneConnection
+            switch: 14
+            targetZone: mischiefplane
+    grimling:
+        -   type: ZoneConnection
+            location: [855, 1935, -267]
+            targetZone: acrylia
+        -   type: ZoneConnection
+            location: [1700, -690, 63]
+            targetZone: tenebrous
+    grobb:
+        -   type: ZoneConnection
+            location: [-224, -3, -2]
+            targetZone: innothuleb
+    guildhall:
+        -   type: ZoneConnection
+            switch: OBJ_GUILD_DOOR
+            targetZone: guildlobby
+    guildlobby:
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: guildhall3
+            name: Neighborhood Guild Hall
+        -   type: ZoneConnection
+            switch: 3
+            targetZone: guildhall
+            name: Standard Guild Hall
+        -   type: ZoneConnection
+            switch: 2
+            targetZone: poknowledge
+    gyrospireb:
+        -   type: ZoneConnection
+            switch: 2
+            targetZone: mechanotus
+    innothuleb:
+        -   type: ZoneConnection
+            location: [-2350, -1190, 10]
+            targetZone: grobb
+        -   type: ZoneConnection
+            location: [-12, -1185, 23]
+            targetZone: guktop
+    kaladima:
+        -   type: ZoneConnection
+            location: [400.25, -260, 1.87999999]
+            targetZone: kaladimb
+            identifier: 1
+        -   type: ZoneConnection
+            location: [430, 330, -17.3299999]
+            targetZone: kaladimb
+            identifier: 2
+    kaladimb:
+        -   type: ZoneConnection
+            location: [345, -228, 3.85999989]
+            targetZone: kaladima
+            identifier: 1
+        -   type: ZoneConnection
+            location: [400, 340, -20]
+            targetZone: kaladima
+            identifier: 2
+    kattacastrumb:
+        -   type: ZoneConnection
+            switch: 122
+            targetZone: tempesttemple
+    lakeofillomen:
+        -   type: ZoneConnection
+            location: [4325, 1190, 47]
+            targetZone: warslikswood
+    lavastorm:
+        -   type: ZoneConnection
+            location: [1113.97998, 1082.89001, -79.3199996]
+            targetZone: soldunga
+        -   type: ZoneConnection
+            location: [3868.65991, 132.380004, -4.30999994]
+            targetZone: broodlands
+    lfaydark:
+        -   type: ZoneConnection
+            location: [2185, -1199, 0]
+            targetZone: gfaydark
+    maiden:
+        -   type: ZoneConnection
+            location: [-2290, 95, -160]
+            targetZone: akheva
+            identifier: 2
+        -   type: ZoneConnection
+            location: [-2310, 235, -160]
+            targetZone: akheva
+            identifier: 1
+        -   type: ZoneConnection
+            location: [-404, -2331, -156]
+            targetZone: umbral
+    umbral:
+        -   type: ZoneConnection
+            switch: 0
+            targetZone: vexthal
+    mseru:
+        -   type: ZoneConnection
+            location: [2200, -1200, 165]
+            targetZone: letalis
+    mechanotus:
+        -   type: ZoneConnection
+            switch: 2
+            targetZone: gyrospirez
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: gyrospireb
+    nedaria:
+        -   type: Translocator
+            name: Magus Wenla
+            destinations:
+                -   keyword: Butcherblock
+                    targetZone: butcher
+                -   keyword: Commonlands
+                    targetZone: commonlands
+                -   keyword: Everfrost
+                    targetZone: everfrost
+                -   keyword: North Ro
+                    targetZone: northro
+                -   keyword: South Ro
+                    targetZone: southro
+                -   keyword: Abysmal Sea
+                    targetZone: abysmal
+                -   keyword: Natimbi
+                    targetZone: natimbi
+    neighborhood:
+        -   type: ZoneConnection
+            switch: 134
+            targetZone: guildlobby
+    netherbian:
+        -   type: ZoneConnection
+            location: [-735, -53, 2]
+            targetZone: dawnshroud
+            identifier: 1
+        -   type: ZoneConnection
+            location: [2000, -435, -62]
+            targetZone: nexus
+            identifier: 1
+    neriakc:
+        -   type: ZoneConnection
+            location: [909, -1770, -70]
+            targetZone: neriakd
+    northkarana:
+        -   type: ZoneConnection
+            location: [20, -3200, -33.5900001]
+            targetZone: eastkarana
+    northro:
+        -   type: ZoneConnection
+            location: [5221, -2533, -3.60999989]
+            targetZone: southro
+            identifier: 1
+        -   type: ZoneConnection
+            location: [6641.91015, -371.48999, 45.4900016]
+            targetZone: commonlands
+    oceangreenvillage:
+        -   type: ZoneConnection
+            location: [-845.150024, 470.160003, 15.5500001]
+            targetZone: bertoxtemple
+    overthere:
+        -   type: ZoneConnection
+            location: [-6100, 1424, 364]
+            targetZone: frontiermtns
+            identifier: 1
+    overtheretwo:
+        -   type: ZoneConnection
+            switch: 6
+            targetZone: charasis
+        -   type: ZoneConnection
+            location: [24, 2575, 21]
+            targetZone: skyfire
+    podisease:
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: potranquility
+    pohealth:
+        -   type: ZoneConnection
+            switch: 35
+            targetZone: potranquility
+    pojustice:
+        -   type: ZoneConnection
+            switch: 33
+            targetZone: potranquility
+    poknowledge:
+        -   type: ZoneConnection
+            switch: 20
+            targetZone: everfrost
+            replace: false
+        -   type: ZoneConnection
+            targetZone: feerrott2
+            name: 'Feerrott: The Dream'
+            switch: POKOGPORT500
+            script: |
+                -- Wait for window to open and click the button on the left
+                mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                if mq.TLO.Window('LargeDialogWindow').Open() then
+                    mq.TLO.Window('LargeDialogWindow/LDW_YesButton').LeftMouseUp()
+                end
+        -   type: ZoneConnection
+            targetZone: feerrott
+            name: 'The Feerrott'
+            switch: POKOGPORT500
+            script: |
+                -- Wait for window to open and click the button on the right
+                mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                if mq.TLO.Window('LargeDialogWindow').Open() then
+                    mq.TLO.Window('LargeDialogWindow/LDW_NoButton').LeftMouseUp()
+                end
+        -   type: ZoneConnection
+            switch: POKCABPORT500
+            targetZone: fieldofbone
+            replace: false
+        -   type: ZoneConnection
+            switch: 11
+            targetZone: firiona
+            replace: false
+        -   type: ZoneConnection
+            switch: 15
+            targetZone: greatdivide
+            replace: false
+        -   type: ZoneConnection
+            switch: POKFELPORT500
+            targetZone: gfaydark
+            identifier: 1
+            replace: false
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: innothuleb
+            replace: false
+        -   type: ZoneConnection
+            switch: OBJ_PORT_CRESCENT
+            targetZone: moors
+            replace: false
+        -   type: ZoneConnection
+            switch: 3
+            targetZone: nektulos
+            replace: false
+        -   type: ZoneConnection
+            switch: POKNPORT500
+            targetZone: nexus
+            replace: false
+        -   type: ZoneConnection
+            switch: 12
+            targetZone: potranquility
+            replace: false
+        -   type: ZoneConnection
+            switch: OBJ_PORT_GUKTA
+            targetZone: rathemtn
+            replace: false
+        -   type: ZoneConnection
+            switch: 9
+            targetZone: steamfontmts
+            replace: false
+        -   type: ZoneConnection
+            switch: 7
+            targetZone: toxxulia
+            identifier: 1
+            replace: false
+        -   type: ZoneConnection
+            switch: 18
+            targetZone: toxxulia
+            identifier: 2
+            replace: false
+    potranquility:
+        -   type: ZoneConnection
+            location: [264, -2214, -934]
+            targetZone: pofire
+        -   type: ZoneConnection
+            location: [-152, -33, -618]
+            targetZone: potactics
+        -   type: ZoneConnection
+            switch: 80
+            targetZone: poair
+        -   type: ZoneConnection
+            switch: 11
+            targetZone: codecay
+        -   type: ZoneConnection
+            switch: 7
+            targetZone: poinnovation
+        -   type: ZoneConnection
+            switch: 37
+            targetZone: pojustice
+        -   type: ZoneConnection
+            location: [1718, -1447, -780]
+            targetZone: podisease
+        -   type: ZoneConnection
+            switch: 13
+            targetZone: pohealth
+        -   type: ZoneConnection
+            switch: 15
+            targetZone: postorms
+        -   type: ZoneConnection
+            switch: 17
+            targetZone: potimea
+        -   type: ZoneConnection
+            switch: 20
+            targetZone: povalor
+        -   type: ZoneConnection
+            switch: 18
+            targetZone: powar
+        -   type: ZoneConnection
+            switch: 83
+            targetZone: powater
+        -   type: ZoneConnection
+            switch: 21
+            targetZone: solrotower
+        -   type: ZoneConnection
+            location: [-697.950012, 1785.66003, -925.900024]
+            targetZone: bothunder
+        -   type: ZoneConnection
+            location: [ -1335, 2192, -714]
+            targetZone: poeartha
+    poeartha:
+        -   type: ZoneConnection
+            location: [142, -1167, 71]
+            targetZone: poearthb
+            identifier: 3
+        -   type: ZoneConnection
+            location: [254.91, -1167, 71]
+            targetZone: potranquility
+    provinggrounds:
+        -   type: ZoneConnection
+            location: [-2454.6499, -839.010009, -309.769989]
+            targetZone: riftseekers
+    qey2hh1:
+        -   type: ZoneConnection
+            location: [-4233, -16483, -60]
+            targetZone: northkarana
+            identifier: 1
+        -   type: ZoneConnection
+            location: [70, 70, -3]
+            targetZone: qeytoqrg
+    qeytoqrg:
+        -   type: ZoneConnection
+            location: [1240, -2475, 0]
+            targetZone: qey2hh1
+            identifier: 1
+        -   type: ZoneConnection
+            location: [-450, 250, -4]
+            targetZone: qeynos2
+            identifier: 1
+    rathemtn:
+        -   type: ZoneConnection
+            location: [3408.75, 3043.37988, -3.86999988]
+            targetZone: lakerathe
+    resplendent:
+        -   type: ZoneConnection
+            switch: 76
+            targetZone: grelleth
+    rivervale:
+        -   type: ZoneConnection
+            location: [-86.1399993, 100, 4.05999994]
+            targetZone: mistythicket
+    southkarana:
+        -   type: ZoneConnection
+            location: [-8580, 1156, 5.46000003]
+            targetZone: lakerathe
+    scorchedwoods:
+        -   type: ZoneConnection
+            location: [-3129, -1235, -292]
+            targetZone: lceanium
+    steamfontmnts:
+        -   type: ZoneConnection
+            location: [-1085, -1080, -15]
+            targetZone: argath
+    steppes:
+        -   type: ZoneConnection
+            location: [2186, -514, 374]
+            targetZone: icefall
+    sunderock:
+        -   type: ZoneConnection
+            location: [-907, -1632, 215]
+            targetZone: vergalid
+    swampofnohope:
+        -   type: ZoneConnection
+            location: [-4500, -2162.5, -3]
+            targetZone: firiona
+            identifier: 1
+        -   type: ZoneConnection
+            location: [-4463, -2656.69995, -0.449999988]
+            targetZone: firiona
+            identifier: 2
+        -   type: ZoneConnection
+            location: [-4500, 2566.01, 3.16000008]
+            targetZone: firiona
+            identifier: 4
+        -   type: ZoneConnection
+            location: [-4500, 2731.01, 2.1400001]
+            targetZone: firiona
+            identifier: 5
+        -   type: ZoneConnection
+            location: [5597, 1200, 9]
+            targetZone: fieldofbone
+            identifier: 1
+        -   type: ZoneConnection
+            location: [1760, -4526, 90]
+            targetZone: trakanon
+            identifier: 1
+        -   type: ZoneConnection
+            location: [2189, -4552, 22]
+            targetZone: trakanon
+            identifier: 2
+    trakanon:
+        -   type: ZoneConnection
+            location: [1500, 4448, -275]
+            targetZone: swampofnohope
+            identifier: 1
+        -   type: ZoneConnection
+            location: [1540, 4500, -270]
+            targetZone: swampofnohope
+            identifier: 2
+        -   type: ZoneConnection
+            switch: 12
+            targetZone: sebilis
+    tempesttemple:
+        -   type: ZoneConnection
+            switch: 3
+            targetZone: endlesscaverns
+    wallofslaughter:
+        -   type: ZoneConnection
+            location: [1979.28002, -1702.54003, 111.669998]
+            targetZone: provinggrounds
+    warslikswood:
+        -   type: ZoneConnection
+            location: [-3660, 1150, 55]
+            targetZone: lakeofillomen
+        -   type: ZoneConnection
+            location: [1640, -3970, 20]
+            targetZone: fieldofbone
+            identifier: 2
+    kodtaz:
+        -   type: ZoneConnection
+            location: [-638, 2690, -405]
+            targetZone: qvic
+    qvic:
+        -   type: ZoneConnection
+            location: [766, -2570, -649]
+            targetZone: kodtaz
