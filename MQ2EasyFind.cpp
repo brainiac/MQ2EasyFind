@@ -435,6 +435,7 @@ public:
 					location.listCategory = "Zone Connection";
 					location.eqZoneConnectionData.id = 0;
 					location.eqZoneConnectionData.subId = -1;
+					location.eqZoneConnectionData.type = location.type;
 
 					// Search for an existing zone entry that matches this one.
 					for (FindZoneConnectionData& entry : unfilteredZoneConnectionList)
@@ -445,6 +446,18 @@ public:
 							if (!location.replace)
 							{
 								location.skip = true;
+							}
+
+							// We replaced a switch with a location. Often times this just means we wanted to change the
+							// position where we click the switch, not remove the switch. Unless the configuration says
+							// switch: "none", then we just change the location only.
+							if (entry.type == FindLocation_Switch && location.eqZoneConnectionData.type == FindLocation_Location)
+							{
+								if (!ci_equals(location.switchName, "none"))
+								{
+									location.eqZoneConnectionData.type = FindLocation_Switch;
+									location.eqZoneConnectionData.id = entry.id;
+								}
 							}
 						}
 					}
@@ -468,7 +481,6 @@ public:
 
 					location.eqZoneConnectionData.zoneId = location.zoneId;
 					location.eqZoneConnectionData.zoneIdentifier = location.zoneIdentifier;
-					location.eqZoneConnectionData.type = location.type;
 					location.eqZoneConnectionData.location = location.location;
 
 					if (location.name.empty())
