@@ -51,23 +51,63 @@ static mq::lua::LuaPluginInterface* s_lua = nullptr;
 static int s_navObserverId = 0;
 static imgui::TextEditor* s_luaCodeViewer = nullptr;
 
+const char* s_luaTranslocatorCode = R"(-- Hail translocator and say keyword
+local spawn = mq.TLO.Spawn(location.spawnName)
+if spawn ~= nil then
+	spawn.DoTarget()
+	mq.delay(500)
+	mq.cmd("/hail")
+	mq.delay(1200)
+	mq.cmdf("/say %s", location.translocatorKeyword)
+end
+)";
+
+// Our own enum just for logging purposes
+enum class LocationType {
+	Unknown,
+	Location,
+	Switch,
+	Translocator,
+};
+
+// Information parsed from YAML
+struct ParsedTranslocatorDestination
+{
+	std::string keyword;
+	EQZoneIndex zoneId = 0;           // numeric zone id
+	int zoneIdentifier = 0;
+};
+
+struct ParsedFindableLocation
+{
+	std::string typeString;
+	LocationType type;                // interpreted type
+	glm::vec3 location;
+	std::string name;
+	EQZoneIndex zoneId = 0;           // numeric zone id
+	int zoneIdentifier = 0;
+	int switchId = -1;                // switch num, or -1 if not set
+	std::string switchName;           // switch name, or "none"
+	std::string luaScript;
+	bool replace = false;
+	std::vector<ParsedTranslocatorDestination> translocatorDestinations;
+};
+
 // loaded configuration information
 struct FindableLocation
 {
 	FindLocationType type;
-	CVector3 location;
+	LocationType easyfindType = LocationType::Unknown;
+	glm::vec3 location;
+	std::string spawnName;                    // target spawn name (instead of location)
 	CXStr name;
-
 	EQZoneIndex zoneId = 0;                   // for zone connections
 	int zoneIdentifier = 0;
-
 	int32_t switchId = -1;                    // for switch zone connections
 	std::string switchName;
-
+	std::string translocatorKeyword;
 	std::string luaScript;                    // lua script for zone connections
-
 	bool replace = false;                     // if false, we won't replace. only add if it doesn't already exist.
-
 
 	// The EQ version of this location, if it exists, and data for the ui
 	CFindLocationWnd::FindZoneConnectionData eqZoneConnectionData;
@@ -80,11 +120,6 @@ struct FindableLocation
 using FindableLocations = std::vector<FindableLocation>;
 FindableLocations s_findableLocations;
 
-static bool MigrateConfigurationFile(bool force = false);
-static void ReloadSettings();
-
-//============================================================================
-
 struct FindLocationRequestState
 {
 	// The request
@@ -94,13 +129,61 @@ struct FindLocationRequestState
 	glm::vec3 location;
 	bool asGroup = false;
 	FindLocationType type;
-	FindableLocation findableLocation;
+	std::shared_ptr<FindableLocation> findableLocation;
 
 	// state while processing
 	bool activateSwitch = false;
 };
-
 static FindLocationRequestState s_activeFindState;
+
+static void GenerateFindableLocations(FindableLocations& findableLocations, std::vector<ParsedFindableLocation>&& parsedLocations);
+static bool MigrateConfigurationFile(bool force = false);
+static void ReloadSettings();
+static void SaveConfigurationFile();
+static void LoadSettings();
+
+//============================================================================
+
+void AddFindableLocationLuaBindings(sol::state_view sv)
+{
+	// todo: these should be moved to mq2lua
+
+	sv.new_usertype<glm::vec3>(
+		"vec3", sol::no_constructor,
+		"x",    &glm::vec3::x,
+		"y",    &glm::vec3::y,
+		"z",    &glm::vec3::z);
+
+	sv.new_enum("LocationType",
+		"Unknown",      LocationType::Unknown,
+		"Location",     LocationType::Location,
+		"Switch",       LocationType::Switch,
+		"Translocator", LocationType::Translocator);
+
+	sv.new_usertype<FindableLocation>(
+		"FindableLocation",                      sol::no_constructor,
+		"type",                                  sol::readonly(&FindableLocation::easyfindType),
+		"name",                                  sol::property([](const FindableLocation& l) -> std::string { return std::string(l.name); }), // todo: expose CXStr
+		"zoneId",                                sol::readonly(&FindableLocation::zoneId),
+		"zoneIdentifier",                        sol::readonly(&FindableLocation::zoneIdentifier),
+		"switchId",                              sol::readonly(&FindableLocation::switchId),
+		"switchName",                            sol::readonly(&FindableLocation::switchName),
+		"spawnName",                             sol::readonly(&FindableLocation::spawnName),
+		"translocatorKeyword",                   sol::readonly(&FindableLocation::translocatorKeyword)
+	);
+}
+
+const char* LocationTypeToString(LocationType type)
+{
+	switch (type)
+	{
+	case LocationType::Location: return "Location";
+	case LocationType::Switch: return "Switch";
+	case LocationType::Translocator: return "Translocator";
+	case LocationType::Unknown:
+	default: return "Unknown";
+	}
+}
 
 bool ExecuteNavCommand(FindLocationRequestState&& request)
 {
@@ -118,18 +201,29 @@ bool ExecuteNavCommand(FindLocationRequestState&& request)
 	}
 	else if (s_activeFindState.type == FindLocation_Switch || s_activeFindState.type == FindLocation_Location)
 	{
-		if (s_activeFindState.location != glm::vec3())
+		if (s_activeFindState.findableLocation)
 		{
-			glm::vec3 loc = s_activeFindState.location;
-			loc.z = pDisplay->GetFloorHeight(loc.x, loc.y, loc.z, 2.0f);
-			sprintf_s(command, "locyxz %.2f %.2f %.2f log=warning tag=easyfind", loc.x, loc.y, loc.z);
-
-			if (s_activeFindState.type == FindLocation_Switch)
-				s_activeFindState.activateSwitch = true;
+			if (!s_activeFindState.findableLocation->spawnName.empty())
+			{
+				sprintf_s(command, "spawn %s | dist=15 log=warning tag=easyfind", s_activeFindState.findableLocation->spawnName.c_str());
+			}
 		}
-		else if (s_activeFindState.type == FindLocation_Switch)
+
+		if (command[0] == 0)
 		{
-			sprintf_s(command, "door id %d click log=warning tag=easyfind", s_activeFindState.switchID);
+			if (s_activeFindState.location != glm::vec3())
+			{
+				glm::vec3 loc = s_activeFindState.location;
+				loc.z = pDisplay->GetFloorHeight(loc.x, loc.y, loc.z, 2.0f);
+				sprintf_s(command, "locyxz %.2f %.2f %.2f log=warning tag=easyfind", loc.x, loc.y, loc.z);
+
+				if (s_activeFindState.type == FindLocation_Switch)
+					s_activeFindState.activateSwitch = true;
+			}
+			else if (s_activeFindState.type == FindLocation_Switch)
+			{
+				sprintf_s(command, "door id %d click log=warning tag=easyfind", s_activeFindState.switchID);
+			}
 		}
 	}
 
@@ -202,7 +296,7 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 				}
 			}
 
-			if (!s_activeFindState.findableLocation.luaScript.empty())
+			if (s_activeFindState.findableLocation && !s_activeFindState.findableLocation->luaScript.empty())
 			{
 				if (s_lua)
 				{
@@ -210,7 +304,13 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 
 					mq::lua::LuaScriptPtr threadPtr = s_lua->CreateLuaScript();
 					s_lua->InjectMQNamespace(threadPtr);
-					s_lua->ExecuteString(threadPtr, s_activeFindState.findableLocation.luaScript, "easyfind");
+
+					// Add bindings about our findable location.
+					sol::state_view sv = s_lua->GetLuaState(threadPtr);
+					AddFindableLocationLuaBindings(sv);
+					sv.set("location", s_activeFindState.findableLocation);
+
+					s_lua->ExecuteString(threadPtr, s_activeFindState.findableLocation->luaScript, "easyfind");
 				}
 				else
 				{
@@ -396,26 +496,6 @@ public:
 		WriteChatf(PLUGIN_MSG "\aoAdded %s - %s with id %d", findableLocation.listCategory.c_str(), findableLocation.listDescription.c_str(), refId);
 	}
 
-	void UpdateListRowColor(int row)
-	{
-		int listRefId = (int)findLocationList->GetItemData(row);
-
-		auto iter = sm_customRefs.find(listRefId);
-		if (iter != sm_customRefs.end())
-		{
-			CustomRefType type = iter->second.type;
-			SListWndLine& line = findLocationList->ItemsArray[row];
-
-			for (SListWndCell& cell : line.Cells)
-			{
-				if (type == CustomRefType::Added)
-					cell.Color = (COLORREF)s_addedLocationColor;
-				else if (type == CustomRefType::Modified)
-					cell.Color = (COLORREF)s_modifiedLocationColor;
-			}
-		}
-	}
-
 	void AddCustomLocations(bool initial)
 	{
 		if (sm_customLocationsAdded)
@@ -434,7 +514,7 @@ public:
 				{
 					location.listCategory = "Zone Connection";
 					location.eqZoneConnectionData.id = 0;
-					location.eqZoneConnectionData.subId = -1;
+					location.eqZoneConnectionData.subId = location.type == FindLocation_Location ? 0 : -1;
 					location.eqZoneConnectionData.type = location.type;
 
 					// Search for an existing zone entry that matches this one.
@@ -451,7 +531,8 @@ public:
 							// We replaced a switch with a location. Often times this just means we wanted to change the
 							// position where we click the switch, not remove the switch. Unless the configuration says
 							// switch: "none", then we just change the location only.
-							if (entry.type == FindLocation_Switch && location.eqZoneConnectionData.type == FindLocation_Location)
+							if (entry.type == FindLocation_Switch && location.eqZoneConnectionData.type == FindLocation_Location
+								&& location.spawnName.empty())
 							{
 								if (!ci_equals(location.switchName, "none"))
 								{
@@ -479,9 +560,31 @@ public:
 						}
 					}
 
+					if (!location.spawnName.empty())
+					{
+						// Get location of the npc
+						MQSpawnSearch SearchSpawn;
+						ClearSearchSpawn(&SearchSpawn);
+
+						SearchSpawn.bExactName = true;
+						strcpy_s(SearchSpawn.szName, location.spawnName.c_str());
+
+						SPAWNINFO* pSpawn = SearchThroughSpawns(&SearchSpawn, pLocalPlayer);
+						if (pSpawn)
+						{
+							location.location = glm::vec3(pSpawn->Y, pSpawn->X, pSpawn->Z);
+						}
+						else
+						{
+							WriteChatf(PLUGIN_MSG "\arFailed to create translocator connection: Could not find \"\ay%s\ar\"!",
+								location.spawnName.c_str());
+							continue;
+						}
+					}
+
 					location.eqZoneConnectionData.zoneId = location.zoneId;
 					location.eqZoneConnectionData.zoneIdentifier = location.zoneIdentifier;
-					location.eqZoneConnectionData.location = location.location;
+					location.eqZoneConnectionData.location = CVector3(location.location.x, location.location.y, location.location.z);
 
 					if (location.name.empty())
 					{
@@ -594,6 +697,26 @@ public:
 		}
 
 		sm_customLocationsAdded = false;
+	}
+
+	void UpdateListRowColor(int row)
+	{
+		int listRefId = (int)findLocationList->GetItemData(row);
+
+		auto iter = sm_customRefs.find(listRefId);
+		if (iter != sm_customRefs.end())
+		{
+			CustomRefType type = iter->second.type;
+			SListWndLine& line = findLocationList->ItemsArray[row];
+
+			for (SListWndCell& cell : line.Cells)
+			{
+				if (type == CustomRefType::Added)
+					cell.Color = (COLORREF)s_addedLocationColor;
+				else if (type == CustomRefType::Modified)
+					cell.Color = (COLORREF)s_modifiedLocationColor;
+			}
+		}
 	}
 
 	virtual int WndNotification(CXWnd* sender, uint32_t message, void* data) override
@@ -795,7 +918,7 @@ public:
 				request.asGroup = asGroup;
 				request.type = ref->type;
 				if (customLocation)
-					request.findableLocation = *customLocation;
+					request.findableLocation = std::make_shared<FindableLocation>(*customLocation);
 
 				ExecuteNavCommand(std::move(request));
 				return true;
@@ -837,7 +960,7 @@ public:
 			request.asGroup = asGroup;
 			request.type = ref->type;
 			if (customLocation)
-				request.findableLocation = *customLocation;
+				request.findableLocation = std::make_shared<FindableLocation>(*customLocation);
 
 			if (pSwitch)
 			{
@@ -953,7 +1076,8 @@ public:
 				YAML::Node zoneNode = addFindLocations[shortName];
 				if (zoneNode.IsDefined())
 				{
-					newLocations = zoneNode.as<FindableLocations>();
+					std::vector<ParsedFindableLocation> parsedLocations = zoneNode.as<std::vector<ParsedFindableLocation>>();
+					GenerateFindableLocations(newLocations, std::move(parsedLocations));
 				}
 			}
 		}
@@ -1050,7 +1174,12 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 
 	if (ci_equals(searchArg, "migrate"))
 	{
-		MigrateConfigurationFile(true);
+		if (MigrateConfigurationFile(true))
+		{
+			SaveConfigurationFile();
+			LoadSettings();
+		}
+
 		return;
 	}
 
@@ -1149,7 +1278,7 @@ static bool MigrateConfigurationFile(bool force)
 						std::vector<std::string_view> pieces = split_view(value, ' ', true);
 
 						int switchId = -1;
-						CVector3 position;
+						glm::vec3 position;
 
 						int index = 0;
 						size_t size = pieces.size();
@@ -1177,7 +1306,7 @@ static bool MigrateConfigurationFile(bool force)
 							float y = GetFloatFromString(pieces[index + 1], 0.0f);
 							float z = GetFloatFromString(pieces[index + 2], 0.0f);
 
-							position = CVector3(x, y, z);
+							position = glm::vec3(x, y, z);
 						}
 						else
 						{
@@ -1244,50 +1373,74 @@ static void SaveConfigurationFile()
 namespace YAML
 {
 	template <>
-	struct convert<CVector3> {
-		static Node encode(const CVector3& vec) {
+	struct convert<glm::vec3> {
+		static Node encode(const glm::vec3& vec) {
 			Node node;
-			node.push_back(vec.X);
-			node.push_back(vec.Y);
-			node.push_back(vec.Z);
+			node.push_back(vec.x);
+			node.push_back(vec.y);
+			node.push_back(vec.z);
 			node.SetStyle(YAML::EmitterStyle::Flow);
 			return node;
 		}
 
-		static bool decode(const Node& node, CVector3& vec) {
+		static bool decode(const Node& node, glm::vec3& vec) {
 			if (!node.IsSequence() || node.size() != 3) {
 				return false;
 			}
-			vec.X = node[0].as<float>();
-			vec.Y = node[1].as<float>();
-			vec.Z = node[2].as<float>();
+			vec.x = node[0].as<float>();
+			vec.y = node[1].as<float>();
+			vec.z = node[2].as<float>();
 			return true;
 		}
 	};
 
 	template <>
-	struct convert<FindableLocation> {
-		static Node encode(const FindableLocation& data) {
+	struct convert<ParsedTranslocatorDestination> {
+		static Node encode(const ParsedTranslocatorDestination& data) {
 			Node node;
-			// todo
 			return node;
 		}
-		static bool decode(const Node& node, FindableLocation& data) {
+
+		static bool decode(const Node& node, ParsedTranslocatorDestination& data) {
 			if (!node.IsMap()) {
 				return false;
 			}
 
-			std::string type = node["type"].as<std::string>();
+			data.keyword = node["keyword"].as<std::string>(std::string());
 
-			if (type == "ZoneConnection")
+			// read zone name (or id)
+			int zoneId = node["targetZone"].as<int>(0);
+			if (zoneId == 0)
 			{
-				data.type = FindLocation_Location;
+				zoneId = GetZoneID(node["targetZone"].as<std::string>().c_str());
+			}
+			data.zoneId = (EQZoneIndex)zoneId;
+			data.zoneIdentifier = node["identifier"].as<int>(0);
+			return true;
+		}
+	};
+
+	template <>
+	struct convert<ParsedFindableLocation> {
+		static Node encode(const ParsedFindableLocation& data) {
+			// todo
+			return Node();
+		}
+		static bool decode(const Node& node, ParsedFindableLocation& data) {
+			if (!node.IsMap()) {
+				return false;
+			}
+
+			data.typeString = node["type"].as<std::string>();
+			if (ci_equals(data.typeString, "ZoneConnection"))
+			{
+				data.type = LocationType::Location;
 				data.name = node["name"].as<std::string>(std::string());
 
 				// If a location is provided, then it is a location.
 				if (node["location"].IsDefined())
 				{
-					data.location = node["location"].as<CVector3>();
+					data.location = node["location"].as<glm::vec3>();
 				}
 
 				if (node["switch"].IsDefined())
@@ -1301,29 +1454,41 @@ namespace YAML
 						data.switchName = switchNode.as<std::string>();
 					}
 
-					data.type = FindLocation_Switch;
+					if (data.switchId != -1 || (!data.switchName.empty() && !ci_equals(data.switchName, "none")))
+					{
+						data.type = LocationType::Switch;
+					}
 				}
 
 				// read zone name (or id)
-				int zoneId = node["targetZone"].as<int>(-1);
-				if (zoneId == -1)
+				int zoneId = node["targetZone"].as<int>(0);
+				if (zoneId == 0)
 				{
 					zoneId = GetZoneID(node["targetZone"].as<std::string>().c_str());
 				}
 				data.zoneId = (EQZoneIndex)zoneId;
 				data.zoneIdentifier = node["identifier"].as<int>(0);
-
 				data.replace = node["replace"].as<bool>(true);
 				data.luaScript = node["script"].as<std::string>(std::string());
 				return true;
 			}
-			//else if (type == "POI")
-			//{
-			//	data.location = node["location"].as<CVector3>();
-			//	data.name = node["name"].as<std::string>(std::string());
-			//	data.description = node["description"].as<std::string>(std::string());
-			//	return true;
-			//}
+			else if (ci_equals(data.typeString, "Translocator"))
+			{
+				data.type = LocationType::Translocator;
+				data.name = node["name"].as<std::string>(std::string());
+
+				// we can have a list of destinations or a single.
+				if (node["destinations"].IsDefined())
+				{
+					data.translocatorDestinations = node["destinations"].as<std::vector<ParsedTranslocatorDestination>>();
+				}
+				else
+				{
+					ParsedTranslocatorDestination destination = node.as<ParsedTranslocatorDestination>();
+					data.translocatorDestinations.push_back(destination);
+				}
+				return true;
+			}
 
 			// other types not supported yet
 			return false;
@@ -1351,6 +1516,56 @@ namespace YAML
 			return true;
 		}
 	};
+}
+
+static void GenerateFindableLocations(FindableLocations& findableLocations, std::vector<ParsedFindableLocation>&& parsedLocations)
+{
+	findableLocations.reserve(parsedLocations.size());
+
+	for (ParsedFindableLocation& parsedLocation : parsedLocations)
+	{
+		switch (parsedLocation.type)
+		{
+		case LocationType::Location:
+		case LocationType::Switch: {
+			FindableLocation loc;
+			loc.easyfindType = parsedLocation.type;
+			loc.type = (parsedLocation.type == LocationType::Location) ? FindLocation_Location : FindLocation_Switch;
+			loc.location = std::move(parsedLocation.location);
+			loc.name = std::move(parsedLocation.name);
+			loc.zoneId = parsedLocation.zoneId;
+			loc.zoneIdentifier = parsedLocation.zoneIdentifier;
+			loc.switchId = parsedLocation.switchId;
+			loc.switchName = std::move(parsedLocation.switchName);
+			loc.luaScript = std::move(parsedLocation.luaScript);
+			loc.replace = parsedLocation.replace;
+			findableLocations.push_back(std::move(loc));
+			break;
+		}
+
+		case LocationType::Translocator: {
+			FindableLocation loc;
+			loc.easyfindType = parsedLocation.type;
+			loc.type = FindLocation_Location;
+			loc.spawnName = std::move(parsedLocation.name);
+
+			for (ParsedTranslocatorDestination& dest : parsedLocation.translocatorDestinations)
+			{
+				FindableLocation transLoc = loc;
+				transLoc.zoneId = dest.zoneId;
+				transLoc.zoneIdentifier = dest.zoneIdentifier;
+				transLoc.translocatorKeyword = dest.keyword;
+
+				transLoc.luaScript = s_luaTranslocatorCode;
+				findableLocations.push_back(std::move(transLoc));
+			}
+			break;
+		}
+
+		case LocationType::Unknown:
+			break;
+		}
+	}
 }
 
 static void LoadSettings()
@@ -1429,12 +1644,6 @@ PLUGIN_API void InitializePlugin()
 	InitializeLua();
 
 	LoadSettings();
-
-	if (MigrateConfigurationFile())
-	{
-		SaveConfigurationFile();
-		LoadSettings();
-	}
 
 	if (pFindLocationWnd)
 	{
@@ -1585,7 +1794,10 @@ static void DrawFindZoneConnectionData(const CFindLocationWnd::FindZoneConnectio
 		ImGui::TextColored(MQColor(127, 127, 127).ToImColor(), "(null)");
 	}
 
-	ImGui::Text("Zone Identifier: %d", data.zoneIdentifier);
+	if (data.zoneIdentifier > 0)
+	{
+		ImGui::Text("Zone Identifier: %d", data.zoneIdentifier);
+	}
 
 	ImGui::Text("Location:"); ImGui::SameLine(0.0f, 4.0f);
 	ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "(%.2f, %.2f, %.2f)", data.location.X, data.location.Y, data.location.Z);
@@ -1879,13 +2091,22 @@ PLUGIN_API void OnUpdateImGui()
 						const FindableLocation* data = customRefData->data;
 
 						ImGui::Text("Type:"); ImGui::SameLine(0.0f, 4.0f);
-						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", FindLocationTypeToString(data->type));
+						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", LocationTypeToString(data->easyfindType));
 
-						ImGui::Text("Name:"); ImGui::SameLine(0.0f, 4.0f);
-						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", data->name.c_str());
+						if (!data->name.empty())
+						{
+							ImGui::Text("Name:"); ImGui::SameLine(0.0f, 4.0f);
+							ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", data->name.c_str());
+						}
+
+						if (!data->spawnName.empty())
+						{
+							ImGui::Text("Spawn Name:"); ImGui::SameLine(0.0f, 4.0f);
+							ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", data->spawnName.c_str());
+						}
 
 						ImGui::Text("Location:"); ImGui::SameLine(0.0f, 4.0f);
-						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "(%.2f, %.2f, %.2f)", data->location.X, data->location.Y, data->location.Z);
+						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "(%.2f, %.2f, %.2f)", data->location.x, data->location.y, data->location.z);
 
 						ImGui::Text("Switch ID: %d", data->switchId);
 						ImGui::Text("Switch Name: %s", data->switchName.c_str());
@@ -1895,6 +2116,11 @@ PLUGIN_API void OnUpdateImGui()
 
 						ImGui::Text("Target Zone: %s (%d)", zoneName, data->zoneId);
 						ImGui::Text("Zone Identifier: %d", data->zoneIdentifier);
+
+						if (!data->translocatorKeyword.empty())
+						{
+							ImGui::Text("Translocator Keyword: %s", data->translocatorKeyword.c_str());
+						}
 
 						bool replace = data->replace;
 						ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.6f);
