@@ -74,6 +74,7 @@
     <ResourceCompile Include="MQ2EasyFind.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="config\MQ2EasyFind.yaml" />
     <None Include="README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

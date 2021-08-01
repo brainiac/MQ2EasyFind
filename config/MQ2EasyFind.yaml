@@ -48,6 +48,10 @@ FindLocations:
         -   type: ZoneConnection
             switch: 2
             targetZone: chapterhouse
+        -   type: Translocator
+            name: Magus Zeir
+            keyword: Nedaria's Landing
+            targetZone: nedaria
     corathus:
         -   type: ZoneConnection
             location: [-390.25, -135.460006, -63.7000007]
@@ -106,6 +110,11 @@ FindLocations:
         -   type: ZoneConnection
             location: [-3445, 1550, -344]
             targetZone: trakanon
+    everfrost:
+        -   type: Translocator
+            name: Magus Delin
+            keyword: Nedaria's Landing
+            targetZone: nedaria
     feerrott:
         -   type: ZoneConnection
             location: [400, 3410, 6]
@@ -199,6 +208,10 @@ FindLocations:
         -   type: ZoneConnection
             switch: 2
             targetZone: poknowledge
+        -   type: Translocator
+            name: Magus Alaria
+            keyword: Nedaria's Landing
+            targetZone: nedaria
     gyrospireb:
         -   type: ZoneConnection
             switch: 2

@@ -983,6 +983,36 @@ public:
 		return false;
 	}
 
+private:
+	void FindLocationByListIndex(int listIndex, bool group)
+	{
+		// Perform navigaiton by triggering a selection in the list.
+		s_performCommandFind = true;
+		s_performGroupCommandFind = group;
+
+		findLocationList->SetCurSel(listIndex);
+		findLocationList->ParentWndNotification(findLocationList, XWM_LCLICK, (void*)listIndex);
+
+		s_performCommandFind = false;
+		s_performGroupCommandFind = false;
+	}
+
+public:
+	void FindLocationByRefNum(int refNum, bool group)
+	{
+		for (int index = 0; index < findLocationList->GetItemCount(); ++index)
+		{
+			int itemRefNum = (int)findLocationList->GetItemData(index);
+			if (itemRefNum == refNum)
+			{
+				FindLocationByListIndex(index, group);
+				return;
+			}
+		}
+
+		WriteChatf(PLUGIN_MSG "\arCouldn't find location by ref: %d", refNum);
+	}
+
 	void FindLocation(std::string_view searchTerm, bool group)
 	{
 		// TODO: Wait for zone connections.
@@ -1042,15 +1072,7 @@ public:
 			return;
 		}
 
-		// Perform navigaiton by triggering a selection in the list.
-		s_performCommandFind = true;
-		s_performGroupCommandFind = group;
-
-		findLocationList->SetCurSel(foundIndex);
-		findLocationList->ParentWndNotification(findLocationList, XWM_LCLICK, (void*)foundIndex);
-
-		s_performCommandFind = false;
-		s_performGroupCommandFind = false;
+		FindLocationByListIndex(foundIndex, group);
 	}
 
 	void LoadZoneSettings()
@@ -2016,6 +2038,17 @@ PLUGIN_API void OnUpdateImGui()
 					else
 					{
 						ImGui::TextColored(MQColor(127, 127, 127).ToImColor(), "Unmodified");
+					}
+
+					if (ImGui::Button("EasyFind"))
+					{
+						findLocWnd->FindLocationByRefNum(selectedRef, false);
+					}
+
+					ImGui::SameLine();
+					if (ImGui::Button("Group EasyFind"))
+					{
+						findLocWnd->FindLocationByRefNum(selectedRef, true);
 					}
 
 					ImGui::NewLine();
