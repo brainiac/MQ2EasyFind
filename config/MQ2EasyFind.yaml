@@ -420,6 +420,10 @@ FindLocations:
             switch: POKNPORT500
             targetZone: nexus
             replace: false
+        -   type: Translocator
+            name: Herald of Druzzil Ro
+            targetZone: potimea
+            keyword: time
         -   type: ZoneConnection
             switch: 12
             targetZone: potranquility
@@ -442,6 +446,11 @@ FindLocations:
             targetZone: toxxulia
             identifier: 2
             replace: false
+    potimea:
+        -   type: Translocator
+            name: Herald of Druzzil Ro
+            targetZone: poknowledge
+            keyword: send
     potranquility:
         -   type: ZoneConnection
             location: [264, -2214, -934]
