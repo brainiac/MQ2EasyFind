@@ -29,28 +29,28 @@ PLUGIN_VERSION(1.0);
 #endif
 
 // Limit the rate at which we update the distance to findable locations
-constexpr std::chrono::milliseconds distanceCalcDelay = std::chrono::milliseconds{ 100 };
+static constexpr std::chrono::milliseconds s_distanceCalcDelay = std::chrono::milliseconds{ 100 };
 
 // configuration
 static std::string s_configFile;
 static YAML::Node s_configNode;
+static imgui::TextEditor* s_luaCodeViewer = nullptr;
+static mq::lua::LuaPluginInterface* s_lua = nullptr;
+static bool s_showMenu = false;
+static nav::NavAPI* s_nav = nullptr;
+static int s_navObserverId = 0;
+static const MQColor s_addedLocationColor(255, 192, 64);
+static const MQColor s_modifiedLocationColor(64, 192, 255);
 
-static bool s_allowFollowPlayerPath = false;
-static bool s_navNextPlayerPath = false;
-static std::chrono::steady_clock::time_point s_playerPathRequestTime = {};
+// /easyfind
 static bool s_performCommandFind = false;
 static bool s_performGroupCommandFind = false;
 
-static const MQColor s_addedLocationColor(255, 192, 64);
-static const MQColor s_modifiedLocationColor(64, 192, 255);
-static bool s_showMenu = false;
-
-static nav::NavAPI* s_nav = nullptr;
-static mq::lua::LuaPluginInterface* s_lua = nullptr;
-static int s_navObserverId = 0;
-static imgui::TextEditor* s_luaCodeViewer = nullptr;
-
-static std::vector<ZonePathData> s_zonePathTest;
+// /travelto State
+static std::vector<ZonePathData> s_activeZonePath;
+static bool s_travelToActive = false;
+static EQZoneIndex s_currentZone = 0;
+static bool s_findNextPath = false;
 
 const char* s_luaTranslocatorCode = R"(-- Hail translocator and say keyword
 local spawn = mq.TLO.Spawn(location.spawnName)
@@ -142,6 +142,7 @@ static bool MigrateConfigurationFile(bool force = false);
 static void ReloadSettings();
 static void SaveConfigurationFile();
 static void LoadSettings();
+static void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData, bool travel);
 
 //============================================================================
 
@@ -239,15 +240,6 @@ bool ExecuteNavCommand(FindLocationRequestState&& request)
 	return false;
 }
 
-void Navigation_Pulse()
-{
-	// Check for events to handle
-	if (s_activeFindState.valid)
-	{
-
-	}
-}
-
 void Navigation_Zoned()
 {
 	// Clear all local navigation state (anything not meant to carry over to the next zone)
@@ -324,6 +316,21 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 			s_activeFindState.valid = false;
 		}
 	}
+	else if (eventType == nav::NavObserverEvent::NavCanceled)
+	{
+		if (s_activeFindState.valid)
+		{
+			s_activeFindState.valid = false;
+
+			if (s_travelToActive)
+			{
+				s_travelToActive = false;
+				SetActiveZonePath({}, false);
+
+				WriteChatf(PLUGIN_MSG "\ayTravelto Canceled");
+			}
+		}
+	}
 }
 
 SPAWNINFO* FindSpawnByName(const char* spawnName, bool exact)
@@ -373,6 +380,7 @@ public:
 	// Holds queued commands in case we try to start a bit too early.
 	static inline std::string sm_queuedSearchTerm;
 	static inline bool sm_queuedGroupParam = false;
+	static inline EQZoneIndex sm_queuedZoneId = 0;
 
 	virtual int OnProcessFrame() override
 	{
@@ -403,7 +411,8 @@ public:
 		// Update distance column. this will internally skip work if necessary.
 		UpdateDistanceColumn();
 
-		if (zoneConnectionsRcvd && !sm_customLocationsAdded)
+		// Ensure that we wait for spawns to be populated into the spawn map first.
+		if (zoneConnectionsRcvd && !sm_customLocationsAdded && gSpawnCount > 0)
 		{
 			AddCustomLocations(true);
 
@@ -414,12 +423,20 @@ public:
 			}
 		}
 
-		if (sm_customLocationsAdded && !sm_queuedSearchTerm.empty())
+		if (sm_customLocationsAdded && (!sm_queuedSearchTerm.empty() || sm_queuedZoneId != 0))
 		{
-			FindLocation(sm_queuedSearchTerm, sm_queuedGroupParam);
+			if (sm_queuedZoneId != 0)
+			{
+				FindZoneConnectionByZoneIndex(sm_queuedZoneId, sm_queuedGroupParam);
+			}
+			else
+			{
+				FindLocation(sm_queuedSearchTerm, sm_queuedGroupParam);
+			}
 
 			sm_queuedSearchTerm.clear();
 			sm_queuedGroupParam = false;
+			sm_queuedZoneId = 0;
 		}
 
 		return result;
@@ -822,7 +839,7 @@ public:
 		auto now = std::chrono::steady_clock::now();
 		bool periodicUpdate = false;
 
-		if (now - sm_lastDistanceUpdate > distanceCalcDelay)
+		if (now - sm_lastDistanceUpdate > s_distanceCalcDelay)
 		{
 			sm_lastDistanceUpdate = now;
 			periodicUpdate = true;
@@ -1080,6 +1097,18 @@ public:
 		}
 
 		return closestIndex;
+	}
+
+	void FindZoneConnectionByZoneIndex(EQZoneIndex zoneId, bool group)
+	{
+		if (!sm_customLocationsAdded)
+		{
+			sm_queuedzoneId = sm_queuedZoneId;
+			sm_queuedGroupParam = group;
+
+			WriteChatf(PLUGIN_MSG "Need to wait for connections to be added!");
+			return;
+		}
 	}
 
 	void FindLocation(std::string_view searchTerm, bool group)
@@ -1356,7 +1385,6 @@ std::vector<ZonePathData> GeneratePathToZone(EQZoneIndex fromZone, EQZoneIndex t
 		zoneId = pathData[zoneId].prevZone;
 	}
 
-	//ZonePathArray newArray(reversedPath.size());
 	std::vector<ZonePathData> newPath;
 	newPath.reserve(reversedPath.size());
 
@@ -1372,7 +1400,18 @@ std::vector<ZonePathData> GeneratePathToZone(EQZoneIndex fromZone, EQZoneIndex t
 	return newPath;
 }
 
-void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData)
+static void FollowActiveZonePath()
+{
+	s_activeZonePath.clear();
+
+	for (const ZonePathData& pathData : ZoneGuideManagerClient::Instance().activePath)
+		s_activeZonePath.push_back(pathData);
+
+	s_travelToActive = true;
+	s_findNextPath = true;
+}
+
+static void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData, bool travel)
 {
 	ZonePathArray pathArray(zonePathData.size());
 
@@ -1383,10 +1422,64 @@ void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData)
 
 	ZoneGuideManagerClient::Instance().activePath = std::move(pathArray);
 
+	s_travelToActive = travel;
+	s_activeZonePath = zonePathData;
+	s_findNextPath = true;
+
 	if (pZonePathWnd)
 	{
 		pZonePathWnd->zonePathDirty = true;
-		pZonePathWnd->Show(true);
+		pZonePathWnd->Show(!s_activeZonePath.empty());
+	}
+}
+
+static void UpdateForZoneChange()
+{
+	// Update current zone
+	if (!pFindLocationWnd || !pZonePathWnd)
+		return;
+
+	// Wait to update until we have all of our locations updated.
+	CFindLocationWndOverride* pFindLocWnd = pFindLocationWnd.get_as<CFindLocationWndOverride>();
+	if (!pFindLocWnd->sm_customLocationsAdded)
+		return;
+
+	s_currentZone = pLocalPlayer->GetZoneID();
+
+	// If zone path is active then update it.
+	if (!s_activeZonePath.empty())
+	{
+		EQZoneIndex destZone = s_activeZonePath.back().zoneId;
+		if (destZone == s_currentZone)
+		{
+			WriteChatf(PLUGIN_MSG "Arrived at our destination: \ay%s\ax!", GetFullZone(destZone));
+			SetActiveZonePath({}, false);
+		}
+		else
+		{
+			// Update the path if we took a wrong turn
+
+			bool found = false;
+			for (const ZonePathData& pathData : s_activeZonePath)
+			{
+				if (pathData.zoneId == s_currentZone)
+				{
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
+			{
+				auto newPath = GeneratePathToZone(s_currentZone, destZone);
+				SetActiveZonePath(newPath, s_travelToActive);
+			}
+		}
+
+		if (s_travelToActive)
+		{
+			s_findNextPath = true;
+		}
 	}
 }
 
@@ -2198,6 +2291,8 @@ static void DrawEasyFindZonePathGeneration()
 		ImGui::TextColored(MQColor(255, 255, 255, 127).ToImColor(), "(none)");
 	}
 
+	static std::vector<ZonePathData> s_zonePathTest;
+
 	if (ImGui::Button("Generate"))
 	{
 		if (pFromZone && pToZone)
@@ -2238,7 +2333,11 @@ static void DrawEasyFindZonePathGeneration()
 
 		if (ImGui::Button("Set Active"))
 		{
-			SetActiveZonePath(s_zonePathTest);
+			SetActiveZonePath(s_zonePathTest, false);
+		}
+		if (ImGui::Button("Travel"))
+		{
+			SetActiveZonePath(s_zonePathTest, true);
 		}
 	}
 }
@@ -2298,9 +2397,6 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 	if (!pFindLocationWnd || !pLocalPlayer)
 		return;
 
-	char searchArg[MAX_STRING] = { 0 };
-	GetArg(searchArg, szLine, 1);
-
 	if (szLine[0] == 0)
 	{
 		WriteChatf(PLUGIN_MSG "Usage: /easyfind [search term]");
@@ -2308,7 +2404,7 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
-	if (ci_equals(searchArg, "migrate"))
+	if (ci_equals(szLine, "migrate"))
 	{
 		if (MigrateConfigurationFile(true))
 		{
@@ -2319,13 +2415,13 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
-	if (ci_equals(searchArg, "reload"))
+	if (ci_equals(szLine, "reload"))
 	{
 		ReloadSettings();
 		return;
 	}
 
-	if (ci_equals(searchArg, "ui"))
+	if (ci_equals(szLine, "ui"))
 	{
 		s_showMenu = !s_showMenu;
 		return;
@@ -2333,12 +2429,63 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 
 	// TODO: group command support.
 
-	pFindLocationWnd.get_as<CFindLocationWndOverride>()->FindLocation(searchArg, false);
+	pFindLocationWnd.get_as<CFindLocationWndOverride>()->FindLocation(szLine, false);
 }
 
 void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 {
+	ZoneGuideManagerClient& zoneGuide = ZoneGuideManagerClient::Instance();
 
+	if (szLine[0] == 0)
+	{
+		if (!zoneGuide.activePath.IsEmpty())
+		{
+			WriteChatf(PLUGIN_MSG "Following active zone path");
+			FollowActiveZonePath();
+			return;
+		}
+
+		WriteChatf(PLUGIN_MSG "Usage: /travelto [zone name]");
+		WriteChatf(PLUGIN_MSG "    Attempts to find a route to the specified zone and then travels to it.");
+		WriteChatf(PLUGIN_MSG "    If no argument is provided, and a zone path is active, /travelto will follow it.");
+		return;
+	}
+
+	if (ci_equals(szLine, "stop"))
+	{
+		bool isActive = s_travelToActive || !s_activeZonePath.empty() || !zoneGuide.activePath.IsEmpty();
+
+		if (s_travelToActive)
+		{
+			WriteChatf(PLUGIN_MSG "\ay/travelto stopped");
+		}
+		else
+		{
+			WriteChatf(PLUGIN_MSG "\arNo /travelto is active.");
+		}
+
+		return;
+	}
+
+	EQZoneInfo* pCurrentZone = pWorldData->GetZone(pZoneInfo->ZoneID);
+	if (!pCurrentZone)
+		return;
+
+	EQZoneInfo* pTargetZone = pWorldData->GetZone(GetZoneID(szLine));
+	if (!pTargetZone)
+	{
+		WriteChatf(PLUGIN_MSG "\arInvalid zone: %s", szLine);
+		return;
+	}
+
+	auto path = GeneratePathToZone(pCurrentZone->Id, pTargetZone->Id);
+	if (path.empty())
+	{
+		WriteChatf(PLUGIN_MSG "\arFailed to generate path from \ay%s\ar to \ay%s\ar.", pCurrentZone->LongName, pTargetZone->LongName);
+		return;
+	}
+
+	SetActiveZonePath(path, true);
 }
 
 #pragma endregion
@@ -2429,11 +2576,53 @@ PLUGIN_API void SetGameState(int GameState)
 
 PLUGIN_API void OnPulse()
 {
-	Navigation_Pulse();
+	if (GetGameState() != GAMESTATE_INGAME)
+		return;
+
+	if (s_currentZone != pLocalPlayer->GetZoneID())
+	{
+		UpdateForZoneChange();
+	}
+
+	if (s_findNextPath)
+	{
+		// Wait to update until we have all of our locations updated.
+		CFindLocationWndOverride* pFindLocWnd = pFindLocationWnd.get_as<CFindLocationWndOverride>();
+		if (pFindLocWnd && pFindLocWnd->sm_customLocationsAdded)
+		{
+			if (!s_activeZonePath.empty())
+			{
+				EQZoneIndex nextZoneId = 0;
+				int transferTypeIndex = -1;
+
+				// Find the next zone to travel to!
+				for (size_t i = 0; i < s_activeZonePath.size() - 1; ++i)
+				{
+					if (s_activeZonePath[i].zoneId == s_currentZone)
+					{
+						nextZoneId = s_activeZonePath[i + 1].zoneId;
+						transferTypeIndex = s_activeZonePath[i].transferTypeIndex;
+						break;
+					}
+				}
+
+				if (nextZoneId != 0)
+				{
+					if (EQZoneInfo* pZoneInfo = pWorldData->GetZone(nextZoneId))
+					{
+						pFindLocWnd->FindLocation(pZoneInfo->ShortName, false);
+					}
+				}
+			}
+			s_findNextPath = false;
+		}
+	}
 }
 
 PLUGIN_API void OnBeginZone()
 {
+	WriteChatf(PLUGIN_MSG "OnBeginZone");
+	s_activeFindState.valid = false;
 }
 
 PLUGIN_API void OnEndZone()
