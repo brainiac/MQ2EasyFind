@@ -143,6 +143,8 @@ static void ReloadSettings();
 static void SaveConfigurationFile();
 static void LoadSettings();
 static void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData, bool travel);
+static void CancelTravelTo(bool success);
+static bool ActivateNextPath();
 
 //============================================================================
 
@@ -324,10 +326,9 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 
 			if (s_travelToActive)
 			{
-				s_travelToActive = false;
-				SetActiveZonePath({}, false);
+				CancelTravelTo(false);
 
-				WriteChatf(PLUGIN_MSG "\ayTravelto Canceled");
+				WriteChatf(PLUGIN_MSG "Canceling /travelto due to navigation being canceled");
 			}
 		}
 	}
@@ -1037,7 +1038,7 @@ public:
 	}
 
 private:
-	void FindLocationByListIndex(int listIndex, bool group)
+	bool FindLocationByListIndex(int listIndex, bool group)
 	{
 		// Perform navigaiton by triggering a selection in the list.
 		s_performCommandFind = true;
@@ -1048,6 +1049,7 @@ private:
 
 		s_performCommandFind = false;
 		s_performGroupCommandFind = false;
+		return true;
 	}
 
 public:
@@ -1099,19 +1101,46 @@ public:
 		return closestIndex;
 	}
 
-	void FindZoneConnectionByZoneIndex(EQZoneIndex zoneId, bool group)
+	bool FindZoneConnectionByZoneIndex(EQZoneIndex zoneId, bool group)
 	{
 		if (!sm_customLocationsAdded)
 		{
-			sm_queuedzoneId = sm_queuedZoneId;
+			sm_queuedZoneId = sm_queuedZoneId;
 			sm_queuedGroupParam = group;
 
 			WriteChatf(PLUGIN_MSG "Need to wait for connections to be added!");
-			return;
+			return true;
 		}
+
+		// look for exact match by zone id
+		int foundIndex = FindClosestLocation(
+			[&](int index)
+			{
+				int refId = (int)findLocationList->GetItemData(index);
+				FindableReference* ref = referenceList.FindFirst(refId);
+				if (!ref) return false;
+
+				if (ref->type == FindLocation_Location || ref->type == FindLocation_Switch)
+				{
+					FindZoneConnectionData& connData = unfilteredZoneConnectionList[ref->index];
+					return connData.zoneId == zoneId;
+				}
+
+				return false;
+			});
+
+		if (foundIndex == -1)
+		{
+			EQZoneInfo* pZoneInfo = pWorldData->GetZone(zoneId);
+
+			WriteChatf(PLUGIN_MSG "Could not find connection to \"\ay%s\ax\".", pZoneInfo ? pZoneInfo->LongName : "Unknown");
+			return false;
+		}
+
+		return FindLocationByListIndex(foundIndex, group);
 	}
 
-	void FindLocation(std::string_view searchTerm, bool group)
+	bool FindLocation(std::string_view searchTerm, bool group)
 	{
 		if (!sm_customLocationsAdded)
 		{
@@ -1119,7 +1148,7 @@ public:
 			sm_queuedGroupParam = group;
 
 			WriteChatf(PLUGIN_MSG "Need to wait for connections to be added!");
-			return;
+			return true;
 		}
 
 		int foundIndex = -1;
@@ -1161,7 +1190,7 @@ public:
 		{
 			// if didn't find then try a substring search, picking the closest match by distance.
 			foundIndex = FindClosestLocation(
-				[&](int index) { return ci_find_substr(findLocationList->GetItemText(index, 1), searchTerm); });
+				[&](int index) { return ci_find_substr(findLocationList->GetItemText(index, 1), searchTerm) != -1; });
 			if (foundIndex != -1)
 			{
 				WriteChatf(PLUGIN_MSG "Finding closest point matching \"\ay%.*s\ax\".", searchTerm.length(), searchTerm.data());
@@ -1171,10 +1200,10 @@ public:
 		if (foundIndex == -1)
 		{
 			WriteChatf(PLUGIN_MSG "Could not find \"\ay%.*s\ax\".", searchTerm.length(), searchTerm.data());
-			return;
+			return false;
 		}
 
-		FindLocationByListIndex(foundIndex, group);
+		return FindLocationByListIndex(foundIndex, group);
 	}
 
 	void LoadZoneSettings()
@@ -1411,6 +1440,12 @@ static void FollowActiveZonePath()
 	s_findNextPath = true;
 }
 
+static void CancelTravelTo(bool success)
+{
+	SetActiveZonePath({}, false);
+	s_travelToActive = false;
+}
+
 static void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData, bool travel)
 {
 	ZonePathArray pathArray(zonePathData.size());
@@ -1423,13 +1458,16 @@ static void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData, boo
 	ZoneGuideManagerClient::Instance().activePath = std::move(pathArray);
 
 	s_travelToActive = travel;
+	s_findNextPath = travel;
 	s_activeZonePath = zonePathData;
-	s_findNextPath = true;
 
-	if (pZonePathWnd)
+	if (ActivateNextPath())
 	{
-		pZonePathWnd->zonePathDirty = true;
-		pZonePathWnd->Show(!s_activeZonePath.empty());
+		if (pZonePathWnd)
+		{
+			pZonePathWnd->zonePathDirty = true;
+			pZonePathWnd->Show(!s_activeZonePath.empty());
+		}
 	}
 }
 
@@ -1453,7 +1491,7 @@ static void UpdateForZoneChange()
 		if (destZone == s_currentZone)
 		{
 			WriteChatf(PLUGIN_MSG "Arrived at our destination: \ay%s\ax!", GetFullZone(destZone));
-			SetActiveZonePath({}, false);
+			CancelTravelTo(true);
 		}
 		else
 		{
@@ -1482,6 +1520,47 @@ static void UpdateForZoneChange()
 		}
 	}
 }
+
+static bool ActivateNextPath()
+{
+	// Wait to update until we have all of our locations updated.
+	CFindLocationWndOverride* pFindLocWnd = pFindLocationWnd.get_as<CFindLocationWndOverride>();
+	if (pFindLocWnd && pFindLocWnd->sm_customLocationsAdded)
+	{
+		s_findNextPath = false;
+		if (!s_activeZonePath.empty())
+		{
+			EQZoneIndex nextZoneId = 0;
+			int transferTypeIndex = -1;
+
+			// Find the next zone to travel to!
+			for (size_t i = 0; i < s_activeZonePath.size() - 1; ++i)
+			{
+				if (s_activeZonePath[i].zoneId == s_currentZone)
+				{
+					nextZoneId = s_activeZonePath[i + 1].zoneId;
+					transferTypeIndex = s_activeZonePath[i].transferTypeIndex;
+					break;
+				}
+			}
+
+			if (nextZoneId != 0)
+			{
+				if (pFindLocWnd->FindZoneConnectionByZoneIndex(nextZoneId, false))
+					return true;
+				
+				CancelTravelTo(false);
+			}
+			else
+			{
+				WriteChatf(PLUGIN_MSG "Unable to find the next zone to travel to!");
+				CancelTravelTo(false);
+			}
+		}
+	}
+	return false;
+}
+
 
 #pragma endregion
 
@@ -2586,60 +2665,14 @@ PLUGIN_API void OnPulse()
 
 	if (s_findNextPath)
 	{
-		// Wait to update until we have all of our locations updated.
-		CFindLocationWndOverride* pFindLocWnd = pFindLocationWnd.get_as<CFindLocationWndOverride>();
-		if (pFindLocWnd && pFindLocWnd->sm_customLocationsAdded)
-		{
-			if (!s_activeZonePath.empty())
-			{
-				EQZoneIndex nextZoneId = 0;
-				int transferTypeIndex = -1;
-
-				// Find the next zone to travel to!
-				for (size_t i = 0; i < s_activeZonePath.size() - 1; ++i)
-				{
-					if (s_activeZonePath[i].zoneId == s_currentZone)
-					{
-						nextZoneId = s_activeZonePath[i + 1].zoneId;
-						transferTypeIndex = s_activeZonePath[i].transferTypeIndex;
-						break;
-					}
-				}
-
-				if (nextZoneId != 0)
-				{
-					if (EQZoneInfo* pZoneInfo = pWorldData->GetZone(nextZoneId))
-					{
-						pFindLocWnd->FindLocation(pZoneInfo->ShortName, false);
-					}
-				}
-			}
-			s_findNextPath = false;
-		}
+		ActivateNextPath();
 	}
 }
 
 PLUGIN_API void OnBeginZone()
 {
-	WriteChatf(PLUGIN_MSG "OnBeginZone");
+	// TODO: Zoning while nav is active counts as a cancel, but maybe it shouldn't.
 	s_activeFindState.valid = false;
-}
-
-PLUGIN_API void OnEndZone()
-{
-}
-
-PLUGIN_API void OnZoned()
-{
-}
-
-
-PLUGIN_API void OnMacroStart(const char* Name)
-{
-}
-
-PLUGIN_API void OnMacroStop(const char* Name)
-{
 }
 
 PLUGIN_API void OnLoadPlugin(const char* Name)
