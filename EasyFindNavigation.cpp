@@ -76,6 +76,7 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 	case nav::NavObserverEvent::NavPauseChanged: eventName = "PAUSED"; break;
 	case nav::NavObserverEvent::NavStarted: eventName = "STARTED"; break;
 	case nav::NavObserverEvent::NavDestinationReached: eventName = "DESTINATIONREACHED"; break;
+	case nav::NavObserverEvent::NavFailed: eventName = "FAILED"; break;
 	default: break;
 	}
 
