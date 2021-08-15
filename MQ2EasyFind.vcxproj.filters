@@ -35,6 +35,9 @@
     <ClInclude Include="EasyFind.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="EasyFindConfiguration.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MQ2EasyFind.rc">

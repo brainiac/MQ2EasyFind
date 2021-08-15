@@ -5,11 +5,6 @@
 
 #include "eqlib/WindowOverride.h"
 
-#pragma warning( push )
-#pragma warning( disable:4996 )
-#include <yaml-cpp/yaml.h>
-#pragma warning( pop )
-
 #include <glm/vec3.hpp>
 
 #define PLUGIN_MSG "\ag[EasyFind]\ax "
@@ -94,11 +89,6 @@ struct FindLocationRequestState
 };
 
 //----------------------------------------------------------------------------
-
-extern YAML::Node g_configNode;
-
-extern const MQColor s_addedLocationColor;
-extern const MQColor s_modifiedLocationColor;
 
 extern FindableLocations g_findableLocations;
 extern FindLocationRequestState g_activeFindState;
@@ -240,7 +230,6 @@ void ExecuteLuaScript(std::string_view luaScript, const std::shared_ptr<Findable
 // Configuration Handlers
 void Config_Initialize();
 void Config_Shutdown();
-void MigrateConfigurationCommand();
 
 // Find Window Handlers
 void FindWindow_Initialize();
@@ -268,7 +257,3 @@ void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData, bool trave
 void StopTravelTo(bool success);
 void ZonePath_OnPulse();
 void ZonePath_NavCanceled();
-
-void LoadZoneSettings();
-void ReloadSettings();
-

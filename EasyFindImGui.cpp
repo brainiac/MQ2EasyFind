@@ -1,11 +1,11 @@
 
 #include "EasyFind.h"
+#include "EasyFindConfiguration.h"
 
 #include "imgui/ImGuiUtils.h"
 #include "imgui/ImGuiTextEditor.h"
 
 static imgui::TextEditor* s_luaCodeViewer = nullptr;
-
 
 static void DrawFindZoneConnectionData(const CFindLocationWnd::FindZoneConnectionData& data)
 {
@@ -194,9 +194,9 @@ static void DrawEasyFindZoneConnections()
 				if (customRefData)
 				{
 					if (customRefData->type == CFindLocationWndOverride::CustomRefType::Added)
-						ImGui::TextColored(s_addedLocationColor.ToImColor(), "Added by EasyFind");
+						ImGui::TextColored(g_configuration->GetColor(ConfiguredColor::AddedLocation).ToImColor(), "Added by EasyFind");
 					else if (customRefData->type == CFindLocationWndOverride::CustomRefType::Modified)
-						ImGui::TextColored(s_modifiedLocationColor.ToImColor(), "Modified by EasyFind");
+						ImGui::TextColored(g_configuration->GetColor(ConfiguredColor::ModifiedLocation).ToImColor(), "Modified by EasyFind");
 				}
 				else
 				{
@@ -461,7 +461,7 @@ void ImGui_OnUpdate()
 			{
 				if (ImGui::MenuItem("Reload Configuration"))
 				{
-					ReloadSettings();
+					g_configuration->ReloadSettings();
 				}
 
 				ImGui::EndMenu();

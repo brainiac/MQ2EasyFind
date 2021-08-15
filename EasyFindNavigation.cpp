@@ -1,5 +1,6 @@
 
 #include "EasyFind.h"
+#include "EasyFindConfiguration.h"
 
 #include "MQ2Nav/PluginAPI.h"
 
@@ -251,7 +252,7 @@ int CFindLocationWndOverride::OnZone()
 
 	int result = Super::OnZone();
 
-	LoadZoneSettings();
+	g_configuration->LoadZoneSettings();
 
 	return result;
 }
@@ -329,7 +330,7 @@ void CFindLocationWndOverride::AddZoneConnection(const FindableLocation& findabl
 
 	// initialize the color
 	for (SListWndCell& cell : line.Cells)
-		cell.Color = (COLORREF)s_addedLocationColor;
+		cell.Color = (COLORREF)g_configuration->GetColor(ConfiguredColor::AddedLocation);
 
 	findLocationList->AddLine(&line);
 
@@ -550,9 +551,9 @@ void CFindLocationWndOverride::UpdateListRowColor(int row)
 		for (SListWndCell& cell : line.Cells)
 		{
 			if (type == CustomRefType::Added)
-				cell.Color = (COLORREF)s_addedLocationColor;
+				cell.Color = (COLORREF)g_configuration->GetColor(ConfiguredColor::AddedLocation);
 			else if (type == CustomRefType::Modified)
-				cell.Color = (COLORREF)s_modifiedLocationColor;
+				cell.Color = (COLORREF)g_configuration->GetColor(ConfiguredColor::ModifiedLocation);
 		}
 	}
 }
@@ -829,9 +830,9 @@ MQColor CFindLocationWndOverride::GetColorForReference(int refId)
 	if (iter != sm_customRefs.end())
 	{
 		if (iter->second.type == CustomRefType::Added)
-			color = s_addedLocationColor;
+			color = g_configuration->GetColor(ConfiguredColor::AddedLocation);
 		else if (iter->second.type == CustomRefType::Modified)
-			color = s_modifiedLocationColor;
+			color = g_configuration->GetColor(ConfiguredColor::ModifiedLocation);
 	}
 
 	return color;
@@ -1026,7 +1027,7 @@ void CFindLocationWndOverride::OnHooked()
 
 	UpdateDistanceColumn();
 	SetWindowText("Find Window (Ctrl+Shift+Click to Navigate)");
-	LoadZoneSettings();
+	g_configuration->LoadZoneSettings();
 }
 
 void CFindLocationWndOverride::OnAboutToUnhook()

@@ -1,16 +1,11 @@
 
 #include "EasyFind.h"
+#include "EasyFindConfiguration.h"
 
 #include "plugins/lua/LuaInterface.h"
 
 PreSetup("MQ2EasyFind");
 PLUGIN_VERSION(1.0);
-
-const MQColor s_addedLocationColor(255, 192, 64);
-const MQColor s_modifiedLocationColor(64, 192, 255);
-
-// configuration
-YAML::Node g_configNode;
 
 static mq::lua::LuaPluginInterface* s_lua = nullptr;
 
@@ -130,13 +125,13 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 
 	if (ci_equals(szLine, "migrate"))
 	{
-		MigrateConfigurationCommand();
+		g_configuration->MigrationCommand();
 		return;
 	}
 
 	if (ci_equals(szLine, "reload"))
 	{
-		ReloadSettings();
+		g_configuration->ReloadSettings();
 		return;
 	}
 
