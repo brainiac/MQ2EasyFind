@@ -65,9 +65,14 @@
     <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
   </PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="MQ2EasyFind.cpp" />
+    <ClCompile Include="EasyFind.cpp" />
+    <ClCompile Include="EasyFindConfiguration.cpp" />
+    <ClCompile Include="EasyFindImGui.cpp" />
+    <ClCompile Include="EasyFindNavigation.cpp" />
+    <ClCompile Include="EasyFindZonePath.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="EasyFind.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
