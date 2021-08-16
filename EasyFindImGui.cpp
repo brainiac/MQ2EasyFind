@@ -6,6 +6,9 @@
 #include "imgui/ImGuiTextEditor.h"
 
 static imgui::TextEditor* s_luaCodeViewer = nullptr;
+static bool s_focusWindow = false;
+
+void DrawEasyFindSettingsPanel();
 
 static void DrawFindZoneConnectionData(const CFindLocationWnd::FindZoneConnectionData& data)
 {
@@ -218,50 +221,80 @@ static void DrawEasyFindZoneConnections()
 				ImGui::TextColored(MQColor("#D040FF").ToImColor(), "Find Location Data:");
 				ImGui::Separator();
 
-				if (ref->type == FindLocation_Player)
-				{
-					int playerId = ref->index;
+				bool showModifiedData = (customRefData && customRefData->type == CFindLocationWndOverride::CustomRefType::Modified
+					&& (ref->type == FindLocation_Switch || ref->type == FindLocation_Location));
+				bool showLocationData = true;
+				bool closeTabBar = false;
 
-					// Find the FindPlayerData with this playerId
-					if (playerData)
+				if (showModifiedData)
+				{
+					closeTabBar = ImGui::BeginTabBar("##LocationDataTabs");
+					if (closeTabBar)
 					{
-						ImGui::Text("Name: %s", playerData->name.c_str());
-						ImGui::Text("Description: %s", playerData->description.c_str());
-						ImGui::Text("Spawn ID: %d", playerData->spawnId);
-						ImGui::Text("Race: %d", playerData->race);
-						ImGui::Text("Class: %d", playerData->Class);
+						if (!ImGui::BeginTabItem("Modified Data"))
+							showLocationData = false;
 					}
 					else
 					{
-						ImGui::TextColored(MQColor(255, 0, 0).ToImColor(), "Could not find player '%d'", playerId);
+						showLocationData = false;
+						showModifiedData = false;
 					}
 				}
-				else if (ref->type == FindLocation_Switch || ref->type == FindLocation_Location)
-				{
-					const CFindLocationWnd::FindZoneConnectionData& data = findLocWnd->unfilteredZoneConnectionList[ref->index];
 
-					DrawFindZoneConnectionData(data);
-				}
-				else
+				if (showLocationData)
 				{
-					ImGui::TextColored(MQColor(255, 0, 0).ToImColor(), "Unhandled location type!");
-				}
-
-				if (customRefData && customRefData->type == CFindLocationWndOverride::CustomRefType::Modified
-					&& (ref->type == FindLocation_Switch || ref->type == FindLocation_Location))
-				{
-					ImGui::NewLine();
-					ImGui::TextColored(MQColor("#D040FF").ToImColor(), "Original Data:");
-					ImGui::Separator();
-
-					if (const CFindLocationWnd::FindZoneConnectionData* origData = findLocWnd->GetOriginalZoneConnectionData(ref->index))
+					if (ref->type == FindLocation_Player)
 					{
-						DrawFindZoneConnectionData(*origData);
+						int playerId = ref->index;
+
+						// Find the FindPlayerData with this playerId
+						if (playerData)
+						{
+							ImGui::Text("Name: %s", playerData->name.c_str());
+							ImGui::Text("Description: %s", playerData->description.c_str());
+							ImGui::Text("Spawn ID: %d", playerData->spawnId);
+							ImGui::Text("Race: %d", playerData->race);
+							ImGui::Text("Class: %d", playerData->Class);
+						}
+						else
+						{
+							ImGui::TextColored(MQColor(255, 0, 0).ToImColor(), "Could not find player '%d'", playerId);
+						}
+					}
+					else if (ref->type == FindLocation_Switch || ref->type == FindLocation_Location)
+					{
+						const CFindLocationWnd::FindZoneConnectionData& data = findLocWnd->unfilteredZoneConnectionList[ref->index];
+
+						DrawFindZoneConnectionData(data);
 					}
 					else
 					{
-						ImGui::TextColored(MQColor(255, 0, 0).ToImColor(), "Could not find original data!");
+						ImGui::TextColored(MQColor(255, 0, 0).ToImColor(), "Unhandled location type!");
 					}
+
+					if (showModifiedData)
+					{
+						ImGui::EndTabItem();
+					}
+				}
+
+				if (showModifiedData)
+				{
+					if (ImGui::BeginTabItem("Original Data"))
+					{
+						if (const CFindLocationWnd::FindZoneConnectionData* origData = findLocWnd->GetOriginalZoneConnectionData(ref->index))
+						{
+							DrawFindZoneConnectionData(*origData);
+						}
+						else
+						{
+							ImGui::TextColored(MQColor(255, 0, 0).ToImColor(), "Could not find original data!");
+						}
+
+						ImGui::EndTabItem();
+					}
+
+					ImGui::EndTabBar();
 				}
 
 				if (customRefData && customRefData->data)
@@ -308,17 +341,18 @@ static void DrawEasyFindZoneConnections()
 					const char* zoneName = pZoneInfo ? pZoneInfo->ShortName : "(null)";
 
 					ImGui::Text("Target Zone: %s (%d)", zoneName, data->zoneId);
-					ImGui::Text("Zone Identifier: %d", data->zoneIdentifier);
+					if (data->zoneIdentifier > 0)
+					{
+						ImGui::Text("Zone Identifier: %d", data->zoneIdentifier);
+					}
 
 					if (!data->translocatorKeyword.empty())
 					{
 						ImGui::Text("Translocator Keyword: %s", data->translocatorKeyword.c_str());
 					}
 
-					bool replace = data->replace;
-					ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.6f);
-					ImGui::Checkbox("Replace Original", &replace);
-					ImGui::PopStyleVar();
+					ImGui::Text("Replace Original:"); ImGui::SameLine(0.0f, 4.0f);
+					ImGui::TextColored((data->replace ? MQColor(0, 255, 0) : MQColor(255, 0, 0)).ToImColor(), "%s", data->replace ? "Yes" : "No");
 
 					if (!data->luaScript.empty())
 					{
@@ -349,7 +383,7 @@ static void DrawEasyFindZonePathGeneration()
 	static char fromZone[256] = { 0 };
 	ImGui::InputText("Starting Zone", fromZone, 256);
 
-	if (ImGui::Button("Use Current"))
+	if (ImGui::Button("Use Current##StartZone"))
 	{
 		if (EQZoneInfo* pZone = pWorldData->GetZone(ZoneGuideManagerClient::Instance().currentZone))
 			strcpy_s(fromZone, pZone->ShortName);
@@ -358,7 +392,7 @@ static void DrawEasyFindZonePathGeneration()
 	static char toZone[256] = { 0 };
 	ImGui::InputText("Destination Zone", toZone, 256);
 
-	if (ImGui::Button("Use Current"))
+	if (ImGui::Button("Use Current##DestZone"))
 	{
 		if (EQZoneInfo* pZone = pWorldData->GetZone(ZoneGuideManagerClient::Instance().currentZone))
 			strcpy_s(toZone, pZone->ShortName);
@@ -397,12 +431,13 @@ static void DrawEasyFindZonePathGeneration()
 	}
 
 	static std::vector<ZonePathData> s_zonePathTest;
+	static std::string message;
 
 	if (ImGui::Button("Generate"))
 	{
 		if (pFromZone && pToZone)
 		{
-			s_zonePathTest = GeneratePathToZone(pFromZone->Id, pToZone->Id);
+			s_zonePathTest = GeneratePathToZone(pFromZone->Id, pToZone->Id, message);
 		}
 	}
 
@@ -410,7 +445,13 @@ static void DrawEasyFindZonePathGeneration()
 
 	if (ImGui::Button("Clear"))
 	{
+		message.clear();
 		s_zonePathTest.clear();
+	}
+
+	if (!message.empty())
+	{
+		ImGui::TextColored(ImColor(255, 255, 0), "%s", message.c_str());
 	}
 
 	if (!s_zonePathTest.empty())
@@ -447,12 +488,57 @@ static void DrawEasyFindZonePathGeneration()
 	}
 }
 
+void DrawEasyFindSettingsPanel()
+{
+	bool changed = false;
+	bool debugLogging = g_configuration->GetLogLevel() == spdlog::level::debug;
+	if (ImGui::Checkbox("##debugLogging", &debugLogging))
+	{
+		g_configuration->SetLogLevel(debugLogging ? spdlog::level::debug : spdlog::level::info);
+		g_configuration->SaveSettings();
+	}
+	ImGui::SameLine();
+	ImGui::Text("Enable Debug Logging");
+
+
+}
+
+static void DrawEasyFindSettingsPanel_MQSettings()
+{
+	DrawEasyFindSettingsPanel();
+
+	ImGui::NewLine();
+
+	if (ImGui::Button("Open EasyFind Window"))
+	{
+		g_showWindow = true;
+		s_focusWindow = true;
+	}
+}
+
+void ImGui_Initialize()
+{
+	AddSettingsPanel("plugins/EasyFind", DrawEasyFindSettingsPanel_MQSettings);
+}
+
+void ImGui_Shutdown()
+{
+	RemoveSettingsPanel("plugins/EasyFind");
+
+	delete s_luaCodeViewer;
+}
+
 void ImGui_OnUpdate()
 {
 	if (!g_showWindow)
 		return;
 
 	ImGui::SetNextWindowSize(ImVec2(800, 440), ImGuiCond_FirstUseEver);
+	if (s_focusWindow)
+	{
+		s_focusWindow = false;
+		ImGui::SetNextWindowFocus();
+	}
 	if (ImGui::Begin("EasyFind", &g_showWindow, ImGuiWindowFlags_MenuBar))
 	{
 		if (ImGui::BeginMenuBar())
@@ -484,13 +570,14 @@ void ImGui_OnUpdate()
 				ImGui::EndTabItem();
 			}
 
+			if (ImGui::BeginTabItem("Settings"))
+			{
+				DrawEasyFindSettingsPanel();
+				ImGui::EndTabItem();
+			}
+
 			ImGui::EndTabBar();
 		}
 	}
 	ImGui::End();
-}
-
-void ImGui_Shutdown()
-{
-	delete s_luaCodeViewer;
 }

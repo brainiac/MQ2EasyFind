@@ -8,6 +8,7 @@
 #include <glm/vec3.hpp>
 
 #define PLUGIN_MSG "\ag[EasyFind]\ax "
+#define PLUGIN_MSG_LOG(x) x "[EasyFind]\ax "
 #define DEBUG_MSGS 1
 
 #if DEBUG_MSG
@@ -237,8 +238,9 @@ void FindWindow_Shutdown();
 void FindWindow_Reset();
 
 // ImGui Handlers
-void ImGui_OnUpdate();
+void ImGui_Initialize();
 void ImGui_Shutdown();
+void ImGui_OnUpdate();
 
 // Lua Handlers
 void Lua_Initialize();
@@ -252,7 +254,8 @@ void Navigation_Zoned();
 void Navigation_Reset();
 
 // ZonePath Handlers
-std::vector<ZonePathData> GeneratePathToZone(EQZoneIndex fromZone, EQZoneIndex toZone);
+std::vector<ZonePathData> GeneratePathToZone(EQZoneIndex fromZone, EQZoneIndex toZone,
+	std::string& outputMessage);
 void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData, bool travel);
 void StopTravelTo(bool success);
 void ZonePath_OnPulse();

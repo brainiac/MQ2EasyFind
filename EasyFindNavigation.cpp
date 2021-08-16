@@ -80,9 +80,9 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 	default: break;
 	}
 
-	WriteChatf("%s", fmt::format(PLUGIN_MSG "Nav Observer: event=\ag{}\ax tag=\ag{}\ax paused=\ag{}\ax destination=\ag({:.2f}, {:.2f}, {:.2f})\ax type=\ag{}\ax", eventName,
+	SPDLOG_DEBUG("Nav Observer: event=\ag{}\ax tag=\ag{}\ax paused=\ag{}\ax destination=\ag({:.2f}, {:.2f}, {:.2f})\ax type=\ag{}\ax", eventName,
 		commandState.tag, commandState.paused, commandState.destination.x, commandState.destination.y, commandState.destination.z,
-		commandState.type).c_str());
+		commandState.type);
 
 	if (commandState.tag != "easyfind")
 		return;
@@ -98,7 +98,7 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 			// Determine if we have extra steps to perform once we reach the destination.
 			if (g_activeFindState.activateSwitch)
 			{
-				WriteChatf(PLUGIN_MSG "Activating switch: \ag%d", g_activeFindState.switchID);
+				SPDLOG_DEBUG("Activating switch: \ag{}", g_activeFindState.switchID);
 
 				EQSwitch* pSwitch = GetSwitchByID(g_activeFindState.switchID);
 				if (pSwitch)
@@ -253,7 +253,7 @@ int CFindLocationWndOverride::OnZone()
 
 	int result = Super::OnZone();
 
-	g_configuration->LoadZoneSettings();
+	g_configuration->LoadZoneConnections();
 
 	return result;
 }
@@ -297,7 +297,7 @@ void CFindLocationWndOverride::AddZoneConnection(const FindableLocation& findabl
 				// Modify the colors
 				UpdateListRowColor(i);
 
-				WriteChatf(PLUGIN_MSG "\ayReplaced %s - %s with custom data", findableLocation.listCategory.c_str(), findableLocation.listDescription.c_str());
+				SPDLOG_DEBUG("\ayReplaced {} - {} with custom data", findableLocation.listCategory, findableLocation.listDescription);
 			}
 
 			return;
@@ -335,7 +335,7 @@ void CFindLocationWndOverride::AddZoneConnection(const FindableLocation& findabl
 
 	findLocationList->AddLine(&line);
 
-	WriteChatf(PLUGIN_MSG "\aoAdded %s - %s with id %d", findableLocation.listCategory.c_str(), findableLocation.listDescription.c_str(), refId);
+	SPDLOG_DEBUG("\aoAdded {} - {} with id {}", findableLocation.listCategory, findableLocation.listDescription, refId);
 }
 
 void CFindLocationWndOverride::AddCustomLocations(bool initial)
@@ -410,8 +410,7 @@ void CFindLocationWndOverride::AddCustomLocations(bool initial)
 					}
 					else
 					{
-						WriteChatf(PLUGIN_MSG "\arFailed to create translocator connection: Could not find \"\ay%s\ar\"!",
-							location.spawnName.c_str());
+						SPDLOG_ERROR("Failed to create translocator connection: Could not find \"\ay{}\ax\"!", location.spawnName);
 						continue;
 					}
 				}
@@ -588,7 +587,7 @@ int CFindLocationWndOverride::WndNotification(CXWnd* sender, uint32_t message, v
 				// Don't "find" custom locations
 				if (refIter->second.type == CustomRefType::Added)
 				{
-					WriteChatf(PLUGIN_MSG "\arCannot find custom locations.");
+					SPDLOG_ERROR("Cannot use standard find window functionality for custom locations.");
 					return 0;
 				}
 			}
@@ -722,7 +721,7 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 {
 	if (!g_navAPILoaded)
 	{
-		WriteChatf(PLUGIN_MSG "\arNavigation requires the MQ2Nav plugin to be loaded.");
+		SPDLOG_ERROR("Navigation requires the MQ2Nav plugin to be loaded.");
 		return false;
 	}
 
@@ -747,11 +746,11 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 		if (PlayerClient* pSpawn = GetSpawnByID(ref->index))
 		{
 			if (pSpawn->Lastname[0] && pSpawn->Type == SPAWN_NPC)
-				WriteChatf(PLUGIN_MSG "Navigating to \aySpawn\ax: \ag%s (%s)", pSpawn->DisplayedName, pSpawn->Lastname);
+				SPDLOG_INFO("Navigating to \aySpawn\ax: \ag{} ({})", pSpawn->DisplayedName, pSpawn->Lastname);
 			else if (pSpawn->Type == SPAWN_PLAYER)
-				WriteChatf(PLUGIN_MSG "Navigating to \ayPlayer:\ax \ag%s", pSpawn->DisplayedName);
+				SPDLOG_INFO("Navigating to \ayPlayer:\ax \ag{}", pSpawn->DisplayedName);
 			else
-				WriteChatf(PLUGIN_MSG "Navigating to \aySpawn:\ax \ag%s", pSpawn->DisplayedName);
+				SPDLOG_INFO("Navigating to \aySpawn:\ax \ag{}", pSpawn->DisplayedName);
 
 			FindLocationRequestState request;
 			request.spawnID = ref->index;
@@ -770,7 +769,7 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 	case FindLocation_Switch: {
 		if (ref->index >= (uint32_t)unfilteredZoneConnectionList.GetCount())
 		{
-			WriteChatf(PLUGIN_MSG "\arUnexpected error: zone connection index is out of range!");
+			SPDLOG_ERROR("Unexpected error: zone connection index is out of range!");
 			return false;
 		}
 
@@ -804,11 +803,11 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 
 		if (pSwitch)
 		{
-			WriteChatf(PLUGIN_MSG "Navigating to \ayZone Connection\ax: \ag%s\ax (via switch \ao%s\ax)", szLocationName, pSwitch->Name);
+			SPDLOG_INFO("Navigating to \ayZone Connection\ax: \ag{}\ax (via switch \ao{}\ax)", szLocationName, pSwitch->Name);
 		}
 		else
 		{
-			WriteChatf(PLUGIN_MSG "Navigating to \ayZone Connection\ax: \ag%s\ax", szLocationName);
+			SPDLOG_INFO("Navigating to \ayZone Connection\ax: \ag{}\ax", szLocationName);
 		}
 
 		ExecuteNavCommand(std::move(request));
@@ -816,7 +815,7 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 	}
 
 	default:
-		WriteChatf(PLUGIN_MSG "\arCannot navigate to selection type: %d", ref->type);
+		SPDLOG_ERROR("Cannot navigate to selection type: {}", ref->type);
 		break;
 	}
 
@@ -887,7 +886,7 @@ void CFindLocationWndOverride::FindLocationByRefNum(int refNum, bool group)
 		}
 	}
 
-	WriteChatf(PLUGIN_MSG "\arCouldn't find location by ref: %d", refNum);
+	SPDLOG_ERROR("Couldn't find location by ref: {}", refNum);
 }
 
 bool CFindLocationWndOverride::FindZoneConnectionByZoneIndex(EQZoneIndex zoneId, bool group)
@@ -897,7 +896,7 @@ bool CFindLocationWndOverride::FindZoneConnectionByZoneIndex(EQZoneIndex zoneId,
 		sm_queuedZoneId = sm_queuedZoneId;
 		sm_queuedGroupParam = group;
 
-		WriteChatf(PLUGIN_MSG "Need to wait for connections to be added!");
+		SPDLOG_WARN("Waiting for connections to be loaded!");
 		return true;
 	}
 
@@ -922,7 +921,7 @@ bool CFindLocationWndOverride::FindZoneConnectionByZoneIndex(EQZoneIndex zoneId,
 	{
 		EQZoneInfo* pZoneInfo = pWorldData->GetZone(zoneId);
 
-		WriteChatf(PLUGIN_MSG "Could not find connection to \"\ay%s\ax\".", pZoneInfo ? pZoneInfo->LongName : "Unknown");
+		SPDLOG_ERROR("Could not find connection to \"\ay{}\ax\".", pZoneInfo ? pZoneInfo->LongName : "Unknown");
 		return false;
 	}
 
@@ -936,7 +935,7 @@ bool CFindLocationWndOverride::FindLocation(std::string_view searchTerm, bool gr
 		sm_queuedSearchTerm = searchTerm;
 		sm_queuedGroupParam = group;
 
-		WriteChatf(PLUGIN_MSG "Need to wait for connections to be added!");
+		SPDLOG_WARN("Waiting for connections to be loaded!");
 		return true;
 	}
 
@@ -982,13 +981,13 @@ bool CFindLocationWndOverride::FindLocation(std::string_view searchTerm, bool gr
 			[&](int index) { return ci_find_substr(findLocationList->GetItemText(index, 1), searchTerm) != -1; });
 		if (foundIndex != -1)
 		{
-			WriteChatf(PLUGIN_MSG "Finding closest point matching \"\ay%.*s\ax\".", searchTerm.length(), searchTerm.data());
+			SPDLOG_INFO("Finding closest point matching \"\ay{}\ax\".", searchTerm);
 		}
 	}
 
 	if (foundIndex == -1)
 	{
-		WriteChatf(PLUGIN_MSG "Could not find \"\ay%.*s\ax\".", searchTerm.length(), searchTerm.data());
+		SPDLOG_ERROR("Could not find \"\ay{}\ax\".", searchTerm);
 		return false;
 	}
 
@@ -1028,7 +1027,7 @@ void CFindLocationWndOverride::OnHooked()
 
 	UpdateDistanceColumn();
 	SetWindowText("Find Window (Ctrl+Shift+Click to Navigate)");
-	g_configuration->LoadZoneSettings();
+	g_configuration->LoadZoneConnections();
 }
 
 void CFindLocationWndOverride::OnAboutToUnhook()

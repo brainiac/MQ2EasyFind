@@ -1,5 +1,3 @@
-ConfigurationMigrated: true
-
 FindLocations:
     arelis:
         -   type: ZoneConnection

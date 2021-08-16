@@ -80,7 +80,7 @@ void ExecuteLuaScript(std::string_view luaScript, const std::shared_ptr<Findable
 {
 	if (s_lua)
 	{
-		WriteChatf(PLUGIN_MSG "\agExecuting script.");
+		SPDLOG_DEBUG("Executing lua script");
 
 		mq::lua::LuaScriptPtr threadPtr = s_lua->CreateLuaScript();
 		s_lua->InjectMQNamespace(threadPtr);
@@ -94,7 +94,7 @@ void ExecuteLuaScript(std::string_view luaScript, const std::shared_ptr<Findable
 	}
 	else
 	{
-		WriteChatf(PLUGIN_MSG "\arCannot run script because MQ2Lua is not loaded: Unable to complete navigation.");
+		SPDLOG_WARN("Cannot run script because Lua is not loaded: Unable to complete navigation.");
 	}
 }
 
@@ -149,6 +149,7 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 PLUGIN_API void InitializePlugin()
 {
 	Config_Initialize();
+	ImGui_Initialize();
 	Navigation_Initialize();
 	Lua_Initialize();
 	FindWindow_Initialize();
@@ -164,8 +165,8 @@ PLUGIN_API void ShutdownPlugin()
 
 	Navigation_Shutdown();
 	Lua_Shutdown();
-	ImGui_Shutdown();
 	FindWindow_Shutdown();
+	ImGui_Shutdown();
 	Config_Shutdown();
 }
 

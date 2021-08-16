@@ -2,19 +2,15 @@
 #include "EasyFind.h"
 #include "EasyFindConfiguration.h"
 
-#pragma warning( push )
-#pragma warning( disable:4996 )
-#include <yaml-cpp/yaml.h>
-#pragma warning( pop )
-
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/base_sink.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/msvc_sink.h>
 
 #include <fstream>
 #include <optional>
 
-static std::string s_configFile;
-
-// configuration
-YAML::Node g_configNode;
+namespace fs = std::filesystem;
 
 EasyFindConfiguration* g_configuration = nullptr;
 
@@ -28,6 +24,58 @@ if spawn ~= nil then
 	mq.cmdf("/say %s", location.translocatorKeyword)
 end
 )";
+
+std::array<MQColor, (size_t)ConfiguredColor::MaxColors> s_defaultColors = {
+	MQColor(255, 192, 64),         // AddedLocation
+	MQColor(64, 192, 255),         // ModifiedLocation
+};
+
+//============================================================================
+
+class WriteChatSink : public spdlog::sinks::base_sink<spdlog::details::null_mutex>
+{
+public:
+	void set_enabled(bool enabled) { enabled_ = enabled; }
+	bool enabled() const { return enabled_; }
+
+protected:
+	void sink_it_(const spdlog::details::log_msg& msg) override
+	{
+		if (!enabled_)
+			return;
+
+		using namespace spdlog;
+
+		fmt::memory_buffer formatted;
+		switch (msg.level)
+		{
+		case level::critical:
+		case level::err:
+			fmt::format_to(formatted, PLUGIN_MSG_LOG("\ar") "{}", msg.payload);
+			break;
+
+		case level::trace:
+		case level::debug:
+			fmt::format_to(formatted, PLUGIN_MSG_LOG("\a#7f7f7f") "{}", msg.payload);
+			break;
+
+		case level::warn:
+			fmt::format_to(formatted, PLUGIN_MSG_LOG("\ay") "{}", msg.payload);
+			break;
+
+		case level::info:
+		default:
+			fmt::format_to(formatted, PLUGIN_MSG_LOG("\ag") "{}", msg.payload);
+			break;
+		}
+
+		WriteChatf("%s", fmt::to_string(formatted).c_str());
+	}
+
+	void flush_() override {}
+
+	bool enabled_ = true;
+};
 
 namespace YAML
 {
@@ -49,6 +97,41 @@ namespace YAML
 			vec.x = node[0].as<float>();
 			vec.y = node[1].as<float>();
 			vec.z = node[2].as<float>();
+			return true;
+		}
+	};
+
+	template <>
+	struct convert<spdlog::level::level_enum> {
+		static Node encode(spdlog::level::level_enum data) {
+			Node node;
+			switch (data) {
+			case spdlog::level::trace: node = "trace"; break;
+			case spdlog::level::debug: node = "debug"; break;
+			case spdlog::level::info: node = "info"; break;
+			case spdlog::level::warn: node = "warn"; break;
+			case spdlog::level::err: node = "error"; break;
+			case spdlog::level::critical: node = "critical"; break;
+			case spdlog::level::off: node = "off"; break;
+			default: node = "info"; break;
+			}
+			return node;
+		}
+		static bool decode(const Node& node, spdlog::level::level_enum& data) {
+			if (!node.IsScalar()) {
+				return false;
+			}
+			std::string nodeValue = node.as<std::string>(std::string());
+			if (nodeValue == "trace") { data = spdlog::level::trace; return true; }
+			if (nodeValue == "debug") { data = spdlog::level::debug; return true; }
+			if (nodeValue == "info") { data = spdlog::level::info; return true; }
+			if (nodeValue == "warn") { data = spdlog::level::warn; return true; }
+			if (nodeValue == "error") { data = spdlog::level::err; return true; }
+			if (nodeValue == "critical") { data = spdlog::level::critical; return true; }
+			if (nodeValue == "off") { data = spdlog::level::off; return true; }
+
+			// just set a default value in unexpected case...
+			data = spdlog::level::info;
 			return true;
 		}
 	};
@@ -177,316 +260,396 @@ namespace YAML
 	};
 }
 
+class ZoneConnections
+{
+public:
+	ZoneConnections(const std::string& configDirectory)
+		: m_configDirectory(configDirectory)
+	{
+		std::error_code ec;
+		if (!fs::is_directory(m_configDirectory, ec))
+		{
+			fs::create_directories(m_configDirectory, ec);
+		}
+
+		Load();
+	}
+
+	~ZoneConnections()
+	{
+	}
+
+	const std::string& GetConfigDir() const { return m_configDirectory; }
+
+	void Load()
+	{
+		std::string configFile = m_configDirectory + "/ZoneConnections.yaml";
+		try
+		{
+			// FIXME
+			m_zoneConnectionsConfig = YAML::LoadFile(configFile);
+		}
+		catch (const YAML::ParserException& ex)
+		{
+			// failed to parse, notify and return
+			SPDLOG_ERROR("Failed to parse YAML in {}: {}", configFile, ex.what());
+			return;
+		}
+		catch (const YAML::BadFile&)
+		{
+			// if we can't read the file, then try to write it with an empty config
+			return;
+		}
+	}
+
+	void LoadZoneConnections()
+	{
+		if (pFindLocationWnd)
+		{
+			pFindLocationWnd.get_as<CFindLocationWndOverride>()->RemoveCustomLocations();
+		}
+
+		if (!pZoneInfo)
+			return;
+
+		EQZoneInfo* zoneInfo = pWorldData->GetZone(pZoneInfo->ZoneID);
+		if (!zoneInfo)
+			return;
+		const char* shortName = zoneInfo->ShortName;
+
+		FindableLocations newLocations;
+
+		try
+		{
+			// Load objects from the AddFindLocations block
+			YAML::Node addFindLocations = m_zoneConnectionsConfig["FindLocations"];
+			if (addFindLocations.IsMap())
+			{
+				YAML::Node zoneNode = addFindLocations[shortName];
+				if (zoneNode.IsDefined())
+				{
+					std::vector<ParsedFindableLocation> parsedLocations = zoneNode.as<std::vector<ParsedFindableLocation>>();
+					GenerateFindableLocations(newLocations, std::move(parsedLocations));
+				}
+			}
+		}
+		catch (const YAML::Exception& ex)
+		{
+			// failed to parse, notify and return
+			SPDLOG_ERROR("Failed to load zone settings for {}: {}", shortName, ex.what());
+		}
+
+		g_findableLocations = std::move(newLocations);
+	}
+
+	void GenerateFindableLocations(FindableLocations& findableLocations, std::vector<ParsedFindableLocation>&& parsedLocations)
+	{
+		findableLocations.reserve(parsedLocations.size());
+
+		for (ParsedFindableLocation& parsedLocation : parsedLocations)
+		{
+			switch (parsedLocation.type)
+			{
+			case LocationType::Location:
+			case LocationType::Switch: {
+				FindableLocation loc;
+				loc.easyfindType = parsedLocation.type;
+				loc.type = (parsedLocation.type == LocationType::Location) ? FindLocation_Location : FindLocation_Switch;
+				loc.location = std::move(parsedLocation.location);
+				loc.name = std::move(parsedLocation.name);
+				loc.zoneId = parsedLocation.zoneId;
+				loc.zoneIdentifier = parsedLocation.zoneIdentifier;
+				loc.switchId = parsedLocation.switchId;
+				loc.switchName = std::move(parsedLocation.switchName);
+				loc.luaScript = std::move(parsedLocation.luaScript);
+				loc.replace = parsedLocation.replace;
+				findableLocations.push_back(std::move(loc));
+				break;
+			}
+
+			case LocationType::Translocator: {
+				FindableLocation loc;
+				loc.easyfindType = parsedLocation.type;
+				loc.type = FindLocation_Location;
+				loc.spawnName = std::move(parsedLocation.name);
+
+				for (ParsedTranslocatorDestination& dest : parsedLocation.translocatorDestinations)
+				{
+					FindableLocation transLoc = loc;
+					transLoc.zoneId = dest.zoneId;
+					transLoc.zoneIdentifier = dest.zoneIdentifier;
+					transLoc.translocatorKeyword = dest.keyword;
+
+					transLoc.luaScript = s_luaTranslocatorCode;
+					findableLocations.push_back(std::move(transLoc));
+				}
+				break;
+			}
+
+			case LocationType::Unknown:
+				break;
+			}
+		}
+	}
+
+	bool MigrateIniData()
+	{
+		if (!pWorldData)
+		{
+			return false; // TODO: Retry later
+		}
+
+		SPDLOG_INFO("Migrating configuration from INI...");
+		std::string iniFile = (std::filesystem::path(gPathConfig) / "MQ2EasyFind.ini").string();
+
+		int count = 0;
+		std::vector<std::string> sectionNames = GetPrivateProfileSections(iniFile);
+
+		if (!sectionNames.empty())
+		{
+			YAML::Node findLocations = m_zoneConnectionsConfig["FindLocations"];
+			for (const std::string& sectionName : sectionNames)
+			{
+				std::string zoneShortName = sectionName;
+				MakeLower(zoneShortName);
+
+				YAML::Node overrides = findLocations[zoneShortName];
+
+				std::vector<std::string> keyNames = GetPrivateProfileKeys(zoneShortName, iniFile);
+				for (std::string& keyName : keyNames)
+				{
+					auto splitPos = keyName.rfind(" - ");
+
+					int identifier = 0;
+					std::string_view zoneLongName = keyName;
+
+					if (splitPos != std::string::npos)
+					{
+						identifier = GetIntFromString(zoneLongName.substr(splitPos + 3), 0);
+						if (identifier != 0)
+						{
+							zoneLongName = trim(zoneLongName.substr(0, splitPos));
+						}
+					}
+
+					EQZoneInfo* pZoneInfo = nullptr;
+
+					// Convert long name to short name
+					for (EQZoneInfo* pZone : pWorldData->ZoneArray)
+					{
+						if (pZone && ci_equals(pZone->LongName, zoneLongName))
+						{
+							pZoneInfo = pZone;
+							break;
+						}
+					}
+
+					if (pZoneInfo)
+					{
+						std::string value = GetPrivateProfileString(sectionName, keyName, "", iniFile);
+						if (!value.empty())
+						{
+							std::vector<std::string_view> pieces = split_view(value, ' ', true);
+
+							int switchId = -1;
+							glm::vec3 position;
+
+							int index = 0;
+							size_t size = pieces.size();
+
+							if (size == 4)
+							{
+								if (starts_with(pieces[index++], "door:"))
+								{
+									// handle door and position (but we don't use position)
+									std::string_view switchNum = pieces[0];
+
+									switchId = GetIntFromString(replace(switchNum, "door:", ""), -1);
+									--size;
+								}
+								else
+								{
+									SPDLOG_ERROR("Failed to migrate section: {} key: {}, invalid value: {}.", sectionName, keyName, value);
+									continue;
+								}
+							}
+							else if (size == 3)
+							{
+								// handle position
+								float x = GetFloatFromString(pieces[index], 0.0f);
+								float y = GetFloatFromString(pieces[index + 1], 0.0f);
+								float z = GetFloatFromString(pieces[index + 2], 0.0f);
+
+								position = glm::vec3(x, y, z);
+							}
+							else
+							{
+								SPDLOG_ERROR("Failed to migrate section: {} key: {}, invalid value: {}.", sectionName, keyName, value);
+								continue;
+							}
+
+							YAML::Node obj;
+							obj["type"] = "ZoneConnection";
+
+							if (switchId != -1)
+							{
+								obj["switch"] = switchId;
+							}
+							else
+							{
+								obj["location"] = position;
+							}
+
+							std::string targetZone = pZoneInfo->ShortName;
+							MakeLower(targetZone);
+							obj["targetZone"] = targetZone;
+
+							if (identifier != 0)
+							{
+								obj["identifier"] = identifier;
+							}
+
+							overrides.push_back(obj);
+							count++;
+							continue;
+						}
+					}
+
+					SPDLOG_ERROR("Failed to migrate section: {} key: {}, zone name not found.", sectionName, keyName);
+				}
+			}
+		}
+
+		if (count > 0)
+		{
+			SPDLOG_INFO("Migrated {} zone connections from MQ2EasyFind.ini", count);
+		}
+		return true;
+	}
+
+private:
+	std::string m_configDirectory;
+	YAML::Node m_zoneConnectionsConfig;
+};
 
 //============================================================================
 //============================================================================
 
 EasyFindConfiguration::EasyFindConfiguration()
-	: m_configFile((std::filesystem::path(gPathConfig) / "MQ2EasyFind.yaml").string())
-	, m_addedLocationColor(255, 192, 64)
-	, m_modifiedLocationColor(64, 192, 255)
 {
+	m_configuredColors = s_defaultColors;
+
+	// The config file holds our user preferences
+	m_configFile = (std::filesystem::path(gPathConfig) / "EasyFind.yaml").string();
+
+	// Zone connections and other navigation data is stored here
+	std::string easyfindDir = (std::filesystem::path(gPathResources) / "EasyFind").string();
+	m_zoneConnections = std::make_unique<ZoneConnections>(easyfindDir);
+
+	// set up the default logger
+	auto logger = std::make_shared<spdlog::logger>("EasyFind");
+	logger->set_level(spdlog::level::debug);
+
+	//spdlog::details::registry::instance().initialize_logger(logger);
+	m_chatSink = std::make_shared<WriteChatSink>();
+	m_chatSink->set_level(spdlog::level::info);
+	logger->sinks().push_back(m_chatSink);
+#if defined(_DEBUG)
+	logger->sinks().push_back(std::make_shared<spdlog::sinks::msvc_sink_mt>());
+#endif
+
+	spdlog::set_default_logger(logger);
+	spdlog::set_pattern("%L %Y-%m-%d %T.%f [%n] %v (%@)");
+	spdlog::flush_on(spdlog::level::debug);
+
 	LoadSettings();
+	m_zoneConnections->Load();
 }
 
 EasyFindConfiguration::~EasyFindConfiguration()
 {
+	spdlog::shutdown();
+}
+
+void EasyFindConfiguration::SetLogLevel(spdlog::level::level_enum level)
+{
+	m_chatSink->set_level(level);
+	m_configNode["GlobalLogLevel"] = level;
+}
+
+spdlog::level::level_enum EasyFindConfiguration::GetLogLevel() const
+{
+	return m_chatSink->level();
 }
 
 void EasyFindConfiguration::ReloadSettings()
 {
-	WriteChatf(PLUGIN_MSG "Reloading settings");
+	SPDLOG_INFO("Reloading settings");
 	LoadSettings();
+}
 
-	LoadZoneSettings();
+void EasyFindConfiguration::ReloadZoneConnections()
+{
+	SPDLOG_INFO("Reloading zone connections");
+	LoadZoneConnections();
 }
 
 void EasyFindConfiguration::LoadSettings()
 {
 	try
 	{
-		g_configNode = YAML::LoadFile(s_configFile);
+		m_configNode = YAML::LoadFile(m_configFile);
+
+		spdlog::level::level_enum globalLogLevel = m_configNode["GlobalLogLevel"].as<spdlog::level::level_enum>(spdlog::level::info);
+		SetLogLevel(globalLogLevel);
 	}
 	catch (const YAML::ParserException& ex)
 	{
 		// failed to parse, notify and return
-		WriteChatf("Failed to parse YAML in %s with %s", s_configFile.c_str(), ex.what());
+		SPDLOG_ERROR("Failed to parse YAML in {}: {}", m_configFile, ex.what());
 		return;
 	}
 	catch (const YAML::BadFile&)
 	{
 		// if we can't read the file, then try to write it with an empty config
-		SaveConfigurationFile();
+		SaveSettings();
 		return;
 	}
 }
 
-void EasyFindConfiguration::LoadZoneSettings()
+void EasyFindConfiguration::SaveSettings()
 {
-	if (pFindLocationWnd)
-	{
-		pFindLocationWnd.get_as<CFindLocationWndOverride>()->RemoveCustomLocations();
-	}
+	std::fstream file(m_configFile, std::ios::out);
 
-	if (!pZoneInfo)
-		return;
-
-	EQZoneInfo* zoneInfo = pWorldData->GetZone(pZoneInfo->ZoneID);
-	if (!zoneInfo)
-		return;
-	const char* shortName = zoneInfo->ShortName;
-
-	FindableLocations newLocations;
-
-	try
-	{
-		// Load objects from the AddFindLocations block
-		YAML::Node addFindLocations = g_configNode["FindLocations"];
-		if (addFindLocations.IsMap())
-		{
-			YAML::Node zoneNode = addFindLocations[shortName];
-			if (zoneNode.IsDefined())
-			{
-				std::vector<ParsedFindableLocation> parsedLocations = zoneNode.as<std::vector<ParsedFindableLocation>>();
-				GenerateFindableLocations(newLocations, std::move(parsedLocations));
-			}
-		}
-	}
-	catch (const YAML::Exception& ex)
-	{
-		// failed to parse, notify and return
-		WriteChatf(PLUGIN_MSG "\arFailed to load zone settings for %s: %s", shortName, ex.what());
-	}
-
-	g_findableLocations = std::move(newLocations);
-}
-
-void EasyFindConfiguration::SaveConfigurationFile()
-{
-	std::fstream file(s_configFile, std::ios::out);
-
-	if (!g_configNode.IsNull())
+	if (!m_configNode.IsNull())
 	{
 		YAML::Emitter y_out;
 		y_out.SetIndent(4);
 		y_out.SetFloatPrecision(3);
 		y_out.SetDoublePrecision(3);
-		y_out << g_configNode;
+		y_out << m_configNode;
 
 		file << y_out.c_str();
 	}
 }
 
-//----------------------------------------------------------------------------
-
-void EasyFindConfiguration::GenerateFindableLocations(FindableLocations& findableLocations, std::vector<ParsedFindableLocation>&& parsedLocations)
+void EasyFindConfiguration::LoadZoneConnections()
 {
-	findableLocations.reserve(parsedLocations.size());
+	m_zoneConnections->LoadZoneConnections();
+}
 
-	for (ParsedFindableLocation& parsedLocation : parsedLocations)
-	{
-		switch (parsedLocation.type)
-		{
-		case LocationType::Location:
-		case LocationType::Switch: {
-			FindableLocation loc;
-			loc.easyfindType = parsedLocation.type;
-			loc.type = (parsedLocation.type == LocationType::Location) ? FindLocation_Location : FindLocation_Switch;
-			loc.location = std::move(parsedLocation.location);
-			loc.name = std::move(parsedLocation.name);
-			loc.zoneId = parsedLocation.zoneId;
-			loc.zoneIdentifier = parsedLocation.zoneIdentifier;
-			loc.switchId = parsedLocation.switchId;
-			loc.switchName = std::move(parsedLocation.switchName);
-			loc.luaScript = std::move(parsedLocation.luaScript);
-			loc.replace = parsedLocation.replace;
-			findableLocations.push_back(std::move(loc));
-			break;
-		}
-
-		case LocationType::Translocator: {
-			FindableLocation loc;
-			loc.easyfindType = parsedLocation.type;
-			loc.type = FindLocation_Location;
-			loc.spawnName = std::move(parsedLocation.name);
-
-			for (ParsedTranslocatorDestination& dest : parsedLocation.translocatorDestinations)
-			{
-				FindableLocation transLoc = loc;
-				transLoc.zoneId = dest.zoneId;
-				transLoc.zoneIdentifier = dest.zoneIdentifier;
-				transLoc.translocatorKeyword = dest.keyword;
-
-				transLoc.luaScript = s_luaTranslocatorCode;
-				findableLocations.push_back(std::move(transLoc));
-			}
-			break;
-		}
-
-		case LocationType::Unknown:
-			break;
-		}
-	}
+MQColor EasyFindConfiguration::GetDefaultColor(ConfiguredColor color) const
+{
+	return s_defaultColors[(int)color];
 }
 
 //----------------------------------------------------------------------------
-
-MQColor EasyFindConfiguration::GetColor(ConfiguredColor color) const
-{
-	switch (color)
-	{
-	case ConfiguredColor::AddedLocation:
-		return m_addedLocationColor;
-	case ConfiguredColor::ModifiedLocation:
-		return m_modifiedLocationColor;
-	default: break;
-	}
-
-	return MQColor();
-}
-
-//----------------------------------------------------------------------------
-
-bool EasyFindConfiguration::MigrateIniFileData()
-{
-	if (!pWorldData)
-	{
-		return false; // TODO: Retry later
-	}
-
-	WriteChatf(PLUGIN_MSG "Migrating configuration from INI...");
-	std::string iniFile = (std::filesystem::path(gPathConfig) / "MQ2EasyFind.ini").string();
-
-	int count = 0;
-	std::vector<std::string> sectionNames = GetPrivateProfileSections(iniFile);
-
-	if (!sectionNames.empty())
-	{
-		YAML::Node findLocations = g_configNode["FindLocations"];
-		for (const std::string& sectionName : sectionNames)
-		{
-			std::string zoneShortName = sectionName;
-			MakeLower(zoneShortName);
-
-			YAML::Node overrides = findLocations[zoneShortName];
-
-			std::vector<std::string> keyNames = GetPrivateProfileKeys(zoneShortName, iniFile);
-			for (std::string& keyName : keyNames)
-			{
-				auto splitPos = keyName.rfind(" - ");
-
-				int identifier = 0;
-				std::string_view zoneLongName = keyName;
-
-				if (splitPos != std::string::npos)
-				{
-					identifier = GetIntFromString(zoneLongName.substr(splitPos + 3), 0);
-					if (identifier != 0)
-					{
-						zoneLongName = trim(zoneLongName.substr(0, splitPos));
-					}
-				}
-
-				EQZoneInfo* pZoneInfo = nullptr;
-
-				// Convert long name to short name
-				for (EQZoneInfo* pZone : pWorldData->ZoneArray)
-				{
-					if (pZone && ci_equals(pZone->LongName, zoneLongName))
-					{
-						pZoneInfo = pZone;
-						break;
-					}
-				}
-
-				if (pZoneInfo)
-				{
-					std::string value = GetPrivateProfileString(sectionName, keyName, "", iniFile);
-					if (!value.empty())
-					{
-						std::vector<std::string_view> pieces = split_view(value, ' ', true);
-
-						int switchId = -1;
-						glm::vec3 position;
-
-						int index = 0;
-						size_t size = pieces.size();
-
-						if (size == 4)
-						{
-							if (starts_with(pieces[index++], "door:"))
-							{
-								// handle door and position (but we don't use position)
-								std::string_view switchNum = pieces[0];
-
-								switchId = GetIntFromString(replace(switchNum, "door:", ""), -1);
-								--size;
-							}
-							else
-							{
-								WriteChatf("\arFailed to migrate section: %s key: %s, invalid value: %s.", sectionName.c_str(), keyName.c_str(), value.c_str());
-								continue;
-							}
-						}
-						else if (size == 3)
-						{
-							// handle position
-							float x = GetFloatFromString(pieces[index], 0.0f);
-							float y = GetFloatFromString(pieces[index + 1], 0.0f);
-							float z = GetFloatFromString(pieces[index + 2], 0.0f);
-
-							position = glm::vec3(x, y, z);
-						}
-						else
-						{
-							WriteChatf("\arFailed to migrate section: %s key: %s, invalid value: %s.", sectionName.c_str(), keyName.c_str(), value.c_str());
-							continue;
-						}
-
-						YAML::Node obj;
-						obj["type"] = "ZoneConnection";
-
-						if (switchId != -1)
-						{
-							obj["switch"] = switchId;
-						}
-						else
-						{
-							obj["location"] = position;
-						}
-
-						std::string targetZone = pZoneInfo->ShortName;
-						MakeLower(targetZone);
-						obj["targetZone"] = targetZone;
-
-						if (identifier != 0)
-						{
-							obj["identifier"] = identifier;
-						}
-
-						overrides.push_back(obj);
-						count++;
-						continue;
-					}
-				}
-
-				WriteChatf("\arFailed to migrate section: %s key: %s, zone name not found.", sectionName.c_str(), keyName.c_str());
-			}
-		}
-	}
-
-	if (count > 0)
-	{
-		WriteChatf("\agMigrated %d zone connections from MQ2EasyFind.ini", count);
-	}
-	return true;
-}
 
 void EasyFindConfiguration::MigrationCommand()
 {
-	if (MigrateIniFileData())
+	if (m_zoneConnections->MigrateIniData())
 	{
-		SaveConfigurationFile();
+		SaveSettings();
 		LoadSettings();
 	}
 }

@@ -9,22 +9,33 @@ static EQZoneIndex s_currentZone = 0;
 static bool s_findNextPath = false;
 
 // Generates a path to the zone by utilizing data from the ZoneGuideManagerClient.
-std::vector<ZonePathData> GeneratePathToZone(EQZoneIndex fromZone, EQZoneIndex toZone)
+std::vector<ZonePathData> GeneratePathToZone(EQZoneIndex fromZone, EQZoneIndex toZone,
+	std::string& outputMessage)
 {
 	ZoneGuideManagerClient& zoneMgr = ZoneGuideManagerClient::Instance();
 
 	if (fromZone == toZone)
+	{
+		outputMessage = "Already at target zone";
 		return {};
+	}
 
-	ZoneGuideZone* toZoneData = zoneMgr.GetZone(toZone);
-	if (!toZoneData)
+	EQZoneInfo* toZoneInfo = pWorldData->GetZone(toZone);
+	if (!toZoneInfo)
+	{
+		outputMessage = "Invalid target zone";
 		return {};
+	}
 
 	ZoneGuideZone* nextZone = nullptr;
 	ZoneGuideZone* currentZone = zoneMgr.GetZone(fromZone);
 
 	if (!currentZone)
+	{
+		outputMessage = "Starting zone has no valid zone connections";
 		return {};
+	}
+
 
 	// Implements a breadth-first search of the zone connections
 
@@ -169,7 +180,7 @@ static bool ActivateNextPath()
 			}
 			else
 			{
-				WriteChatf(PLUGIN_MSG "Unable to find the next zone to travel to!");
+				SPDLOG_ERROR("Unable to find the next zone to travel to!");
 				StopTravelTo(false);
 			}
 		}
@@ -221,7 +232,7 @@ static void UpdateForZoneChange()
 		EQZoneIndex destZone = s_activeZonePath.back().zoneId;
 		if (destZone == s_currentZone)
 		{
-			WriteChatf(PLUGIN_MSG "Arrived at our destination: \ay%s\ax!", GetFullZone(destZone));
+			SPDLOG_INFO("Arrived at our destination: \ay{}\ax!", GetFullZone(destZone));
 			StopTravelTo(true);
 		}
 		else
@@ -240,7 +251,12 @@ static void UpdateForZoneChange()
 
 			if (!found)
 			{
-				auto newPath = GeneratePathToZone(s_currentZone, destZone);
+				std::string message;
+				auto newPath = GeneratePathToZone(s_currentZone, destZone, message);
+				if (newPath.empty())
+				{
+					SPDLOG_WARN("Path generation failed: {}", message);
+				}
 				SetActiveZonePath(newPath, s_travelToActive);
 			}
 		}
@@ -271,7 +287,7 @@ void ZonePath_NavCanceled()
 	{
 		StopTravelTo(false);
 
-		WriteChatf(PLUGIN_MSG "Canceling /travelto due to navigation being canceled");
+		SPDLOG_INFO("Canceling /travelto due to navigation being canceled");
 	}
 }
 
@@ -283,7 +299,7 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 	{
 		if (!zoneGuide.activePath.IsEmpty())
 		{
-			WriteChatf(PLUGIN_MSG "Following active zone path");
+			SPDLOG_INFO("Following active zone path");
 			FollowActiveZonePath();
 			return;
 		}
@@ -300,11 +316,11 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 
 		if (s_travelToActive)
 		{
-			WriteChatf(PLUGIN_MSG "\ay/travelto stopped");
+			SPDLOG_INFO("/travelto stopped");
 		}
 		else
 		{
-			WriteChatf(PLUGIN_MSG "\arNo /travelto is active.");
+			SPDLOG_WARN("No /travelto is active.");
 		}
 
 		return;
@@ -317,14 +333,16 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 	EQZoneInfo* pTargetZone = pWorldData->GetZone(GetZoneID(szLine));
 	if (!pTargetZone)
 	{
-		WriteChatf(PLUGIN_MSG "\arInvalid zone: %s", szLine);
+		SPDLOG_ERROR("Invalid zone: {}", szLine);
 		return;
 	}
 
-	auto path = GeneratePathToZone(pCurrentZone->Id, pTargetZone->Id);
+	std::string message;
+	auto path = GeneratePathToZone(pCurrentZone->Id, pTargetZone->Id, message);
 	if (path.empty())
 	{
-		WriteChatf(PLUGIN_MSG "\arFailed to generate path from \ay%s\ar to \ay%s\ar.", pCurrentZone->LongName, pTargetZone->LongName);
+		SPDLOG_ERROR("Failed to generate path from \ay{}\ar to \ay{}\ar: {}.",
+			pCurrentZone->LongName, pTargetZone->LongName, message);
 		return;
 	}
 
