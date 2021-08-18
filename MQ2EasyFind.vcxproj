@@ -69,19 +69,21 @@
     <ClCompile Include="EasyFindConfiguration.cpp" />
     <ClCompile Include="EasyFindImGui.cpp" />
     <ClCompile Include="EasyFindNavigation.cpp" />
+    <ClCompile Include="EasyFindWindow.cpp" />
     <ClCompile Include="EasyFindZonePath.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EasyFind.h" />
     <ClInclude Include="EasyFindConfiguration.h" />
+    <ClInclude Include="EasyFindWindow.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MQ2EasyFind.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="config\MQ2EasyFind.yaml" />
     <None Include="README.md" />
+    <None Include="resources\EasyFind\ZoneConnections.yaml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -7,16 +7,9 @@
 PreSetup("MQ2EasyFind");
 PLUGIN_VERSION(1.0);
 
+#define EASYFIND_PLUGIN_VERSION "1.0.0"
+
 static mq::lua::LuaPluginInterface* s_lua = nullptr;
-
-bool g_navAPILoaded = false;
-bool g_showWindow = false;
-
-// /easyfind
-bool g_performCommandFind = false;
-bool g_performGroupCommandFind = false;
-
-FindableLocations g_findableLocations;
 
 //============================================================================
 
@@ -111,15 +104,35 @@ void Lua_Shutdown()
 //============================================================================
 //============================================================================
 
+void ShowHelp()
+{
+	WriteChatf(PLUGIN_MSG "EasyFind Usage:");
+	WriteChatf(PLUGIN_MSG "\ag/easyfind \ao[search term]");
+	WriteChatf(PLUGIN_MSG "\ag/easyfind \aygroup\ax \ao[search term]");
+	WriteChatf(PLUGIN_MSG "    Searches the Find Window for the given \ao[search term]\ax, either exact or partial match. If found, begins navigation. "
+		"\ao[search term]\ax may also be a zone shortname. In this case, the closest zone connection matching for that zone will be found. "
+		"If \aggroup\ax is specified, the command will attempt to navigate the whole group.");
+	WriteChatf(PLUGIN_MSG "\ag/easyfind \ayreload\aw - Reload zone connections from easyfind folder: \ay%s", g_configuration->GetZoneConnectionsDir().c_str());
+	WriteChatf(PLUGIN_MSG "\ag/easyfind \ayui\aw - Toggle EasyFind ui");
+	WriteChatf(PLUGIN_MSG "\ag/easyfind \aymigrate\aw - Migrate MQ2EasyFind.ini from old MQ2EasyFind to new format");
+	WriteChatf(PLUGIN_MSG "");
+	WriteChatf(PLUGIN_MSG "\ag/travelto \ao[zonename]");
+	WriteChatf(PLUGIN_MSG "\ag/travelto \aygroup\ax \ao[zonename]");
+	WriteChatf(PLUGIN_MSG "    Find a route to the specified \ao[zonename]\ax (short or long) and then follow it. "
+		"If \aggroup\ax is specified, the command will attempt to navigate the whole group.");
+	WriteChatf(PLUGIN_MSG "\ag/travelto \ayactivate\aw - If an existing zone path is active (created by the zone guide), "
+		"activate that path with /travelto");
+	WriteChatf(PLUGIN_MSG "\ag/travelto \aystop\aw - Stops an active /travelto");
+}
+
 void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 {
 	if (!pFindLocationWnd || !pLocalPlayer)
 		return;
 
-	if (szLine[0] == 0)
+	if (szLine[0] == 0 || ci_equals(szLine, "help"))
 	{
-		WriteChatf(PLUGIN_MSG "Usage: /easyfind [search term]");
-		WriteChatf(PLUGIN_MSG "    Searches the Find Window for the given text, either exact or partial match. If found, begins navigation.");
+		ShowHelp();
 		return;
 	}
 
@@ -131,23 +144,83 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 
 	if (ci_equals(szLine, "reload"))
 	{
-		g_configuration->ReloadSettings();
+		g_configuration->ReloadZoneConnections();
 		return;
 	}
 
 	if (ci_equals(szLine, "ui"))
 	{
-		g_showWindow = !g_showWindow;
+		ImGui_ToggleWindow();
 		return;
 	}
 
-	// TODO: group command support.
+	bool group = false;
+	if (ci_starts_with(szLine, "group"))
+	{
+		szLine += strlen("group") + 1;
+		group = true;
+	}
 
-	pFindLocationWnd.get_as<CFindLocationWndOverride>()->FindLocation(szLine, false);
+	FindWindow_FindLocation(szLine, group);
+}
+
+void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
+{
+	ZoneGuideManagerClient& zoneGuide = ZoneGuideManagerClient::Instance();
+
+	if (szLine[0] == 0)
+	{
+		ShowHelp();
+		return;
+	}
+
+	if (ci_equals(szLine, "stop"))
+	{
+		ZonePath_Stop();
+		return;
+	}
+
+	if (ci_equals(szLine, "activate"))
+	{
+		if (!zoneGuide.activePath.IsEmpty())
+		{
+			SPDLOG_INFO("Following active zone path");
+			ZonePath_FollowActive();
+			return;
+		}
+
+		SPDLOG_WARN("No active zone path to follow");
+		return;
+	}
+
+	EQZoneInfo* pCurrentZone = pWorldData->GetZone(pZoneInfo->ZoneID);
+	if (!pCurrentZone)
+		return;
+
+	EQZoneInfo* pTargetZone = pWorldData->GetZone(GetZoneID(szLine));
+	if (!pTargetZone)
+	{
+		SPDLOG_ERROR("Invalid zone: {}", szLine);
+		return;
+	}
+
+	std::string message;
+	auto path = ZonePath_GeneratePath(pCurrentZone->Id, pTargetZone->Id, message);
+	if (path.empty())
+	{
+		SPDLOG_ERROR("Failed to generate path from \ay{}\ar to \ay{}\ar: {}.",
+			pCurrentZone->LongName, pTargetZone->LongName, message);
+		return;
+	}
+
+	ZonePath_SetActive(path, true);
 }
 
 PLUGIN_API void InitializePlugin()
 {
+	WriteChatf(PLUGIN_MSG "v%s \arBETA\ax by brainiac (\aohttps://github.com/brainiac/MQ2EasyFind\ax)", EASYFIND_PLUGIN_VERSION);
+	WriteChatf(PLUGIN_MSG "Type \ag/easyfind help\ax for more info.");
+
 	Config_Initialize();
 	ImGui_Initialize();
 	Navigation_Initialize();

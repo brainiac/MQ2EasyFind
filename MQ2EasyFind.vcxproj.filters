@@ -10,12 +10,15 @@
     <Filter Include="Resource Files">
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
     </Filter>
+    <Filter Include="Resource Files\easyfind">
+      <UniqueIdentifier>{fd812420-0e27-45e5-b702-f07bf36e3d40}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="EasyFind.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="EasyFindNavigation.cpp">
+    <ClCompile Include="EasyFindWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="EasyFindImGui.cpp">
@@ -25,6 +28,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="EasyFindConfiguration.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="EasyFindNavigation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -38,6 +44,9 @@
     <ClInclude Include="EasyFindConfiguration.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="EasyFindWindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MQ2EasyFind.rc">
@@ -46,8 +55,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
-    <None Include="config\MQ2EasyFind.yaml">
-      <Filter>Resource Files</Filter>
+    <None Include="resources\EasyFind\ZoneConnections.yaml">
+      <Filter>Resource Files\easyfind</Filter>
     </None>
   </ItemGroup>
 </Project>

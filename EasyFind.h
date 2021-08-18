@@ -2,20 +2,10 @@
 #pragma once
 
 #include <mq/Plugin.h>
-
-#include "eqlib/WindowOverride.h"
-
 #include <glm/vec3.hpp>
 
 #define PLUGIN_MSG "\ag[EasyFind]\ax "
 #define PLUGIN_MSG_LOG(x) x "[EasyFind]\ax "
-#define DEBUG_MSGS 1
-
-#if DEBUG_MSG
-#define DebugWritef WriteChatf
-#else
-#define DebugWritef()
-#endif
 
 // Our own enum just for logging purposes
 enum class LocationType {
@@ -92,138 +82,8 @@ struct FindLocationRequestState
 //----------------------------------------------------------------------------
 
 extern FindableLocations g_findableLocations;
-extern FindLocationRequestState g_activeFindState;
-
-// /easyfind
-extern bool g_performCommandFind;
-extern bool g_performGroupCommandFind;
-
-extern bool g_navAPILoaded;
-extern bool g_showWindow;
 
 //----------------------------------------------------------------------------
-
-class CFindLocationWndOverride : public WindowOverride<CFindLocationWndOverride, CFindLocationWnd>
-{
-public:
-	enum class CustomRefType {
-		Added,
-		Modified,
-	};
-
-	struct RefData {
-		CustomRefType type = CustomRefType::Added;
-		const FindableLocation* data = nullptr;
-	};
-
-	//----------------------------------------------------------------------------
-	// overrides
-
-	virtual int OnProcessFrame() override;
-	virtual bool AboutToShow() override;
-	virtual int OnZone() override;
-	virtual int WndNotification(CXWnd* sender, uint32_t message, void* data) override;
-
-	uint32_t GetAvailableId();
-
-	//----------------------------------------------------------------------------
-	// zone connection handling
-
-	void AddZoneConnection(const FindableLocation& findableLocation);
-	void AddCustomLocations(bool initial);
-	void RemoveCustomLocations();
-	void UpdateListRowColor(int row);
-
-	void UpdateDistanceColumn();
-
-	FindableReference* GetReferenceForListIndex(int index) const;
-	CVector3 GetReferencePosition(FindableReference* ref, bool& found);
-
-	// Returns true if we handled the navigation here. Returns false if we couldn't do it
-	// and that we should let the path get created so we can navigate to it.
-	bool PerformFindWindowNavigation(int refId, bool asGroup);
-
-	bool IsCustomLocationsAdded() const { return sm_customLocationsAdded; }
-
-	MQColor GetColorForReference(int refId);
-	RefData* GetCustomRefData(int refId);
-	const FindZoneConnectionData* GetOriginalZoneConnectionData(int index);
-
-public:
-	void FindLocationByRefNum(int refNum, bool group);
-
-	template <typename T>
-	int FindClosestLocation(T&& callback)
-	{
-		int closestIndex = -1;
-		float closestDistance = FLT_MAX;
-		CVector3 myPos = { pLocalPlayer->Y, pLocalPlayer->X, pLocalPlayer->Z };
-
-		for (int i = 0; i < findLocationList->GetItemCount(); ++i)
-		{
-			if (callback(i))
-			{
-				// Get distance to target.
-				FindableReference* ref = GetReferenceForListIndex(i);
-				if (ref)
-				{
-					bool found = false;
-					CVector3 pos = GetReferencePosition(ref, found);
-					if (found)
-					{
-						float distance = myPos.GetDistanceSquared(pos);
-						if (distance < closestDistance)
-						{
-							closestDistance = distance;
-							closestIndex = i;
-						}
-					}
-				}
-			}
-		}
-
-		return closestIndex;
-	}
-
-	bool FindZoneConnectionByZoneIndex(EQZoneIndex zoneId, bool group);
-	bool FindLocation(std::string_view searchTerm, bool group);
-
-	void OnHooked();
-	void OnAboutToUnhook();
-
-	static void OnHooked(CFindLocationWndOverride* pWnd) { pWnd->OnHooked(); }
-	static void OnAboutToUnhook(CFindLocationWndOverride* pWnd) { pWnd->OnAboutToUnhook(); }
-
-private:
-	bool FindLocationByListIndex(int listIndex, bool group);
-
-
-
-	// our "member variables" are static because we can't actually add new member variables,
-	// but we only ever have one instance of CFindLocationWnd, so this works out to be about the same.
-
-	static inline int sm_distanceColumn = -1;
-	static inline std::chrono::steady_clock::time_point sm_lastDistanceUpdate;
-
-	// tracks whether the custom locations have been added to the window or not.
-	static inline bool sm_customLocationsAdded = false;
-
-	// container holding our custom ref ids and their types.
-  	static inline std::map<int, RefData> sm_customRefs;
-
-	// the original zone connections for values that we overwrote.
-	static inline std::map<int, FindZoneConnectionData> sm_originalZoneConnections;
-
-	// Holds queued commands in case we try to start a bit too early.
-	static inline std::string sm_queuedSearchTerm;
-	static inline bool sm_queuedGroupParam = false;
-	static inline EQZoneIndex sm_queuedZoneId = 0;
-};
-
-//----------------------------------------------------------------------------
-
-void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine);
-void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine);
 
 SPAWNINFO* FindSpawnByName(const char* spawnName, bool exact);
 void ExecuteLuaScript(std::string_view luaScript, const std::shared_ptr<FindableLocation>& findableLocation);
@@ -236,11 +96,13 @@ void Config_Shutdown();
 void FindWindow_Initialize();
 void FindWindow_Shutdown();
 void FindWindow_Reset();
+void FindWindow_FindLocation(std::string_view searchTerm, bool asGroup);
 
 // ImGui Handlers
 void ImGui_Initialize();
 void ImGui_Shutdown();
 void ImGui_OnUpdate();
+void ImGui_ToggleWindow();
 
 // Lua Handlers
 void Lua_Initialize();
@@ -252,11 +114,13 @@ void Navigation_Shutdown();
 void Navigation_BeginZone();
 void Navigation_Zoned();
 void Navigation_Reset();
+bool Navigation_IsInitialized();
+bool Navigation_ExecuteCommand(FindLocationRequestState&& request);
 
 // ZonePath Handlers
-std::vector<ZonePathData> GeneratePathToZone(EQZoneIndex fromZone, EQZoneIndex toZone,
-	std::string& outputMessage);
-void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData, bool travel);
-void StopTravelTo(bool success);
+std::vector<ZonePathData> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneIndex toZone, std::string& outputMessage);
+void ZonePath_SetActive(const std::vector<ZonePathData>& zonePathData, bool travel);
 void ZonePath_OnPulse();
 void ZonePath_NavCanceled();
+void ZonePath_FollowActive();
+void ZonePath_Stop();

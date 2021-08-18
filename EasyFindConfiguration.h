@@ -49,6 +49,8 @@ public:
 	void SetLogLevel(spdlog::level::level_enum level);
 	spdlog::level::level_enum GetLogLevel() const;
 
+	const std::string& GetZoneConnectionsDir() const;
+
 	void MigrationCommand();
 
 private:

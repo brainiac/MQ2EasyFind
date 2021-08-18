@@ -1,5 +1,6 @@
 
 #include "EasyFind.h"
+#include "EasyFindWindow.h"
 
 static std::vector<ZonePathData> s_activeZonePath;
 
@@ -9,7 +10,7 @@ static EQZoneIndex s_currentZone = 0;
 static bool s_findNextPath = false;
 
 // Generates a path to the zone by utilizing data from the ZoneGuideManagerClient.
-std::vector<ZonePathData> GeneratePathToZone(EQZoneIndex fromZone, EQZoneIndex toZone,
+std::vector<ZonePathData> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneIndex toZone,
 	std::string& outputMessage)
 {
 	ZoneGuideManagerClient& zoneMgr = ZoneGuideManagerClient::Instance();
@@ -131,7 +132,7 @@ std::vector<ZonePathData> GeneratePathToZone(EQZoneIndex fromZone, EQZoneIndex t
 	return newPath;
 }
 
-static void FollowActiveZonePath()
+void ZonePath_FollowActive()
 {
 	s_activeZonePath.clear();
 
@@ -144,7 +145,7 @@ static void FollowActiveZonePath()
 
 void StopTravelTo(bool success)
 {
-	SetActiveZonePath({}, false);
+	ZonePath_SetActive({}, false);
 	s_travelToActive = false;
 }
 
@@ -188,7 +189,7 @@ static bool ActivateNextPath()
 	return false;
 }
 
-void SetActiveZonePath(const std::vector<ZonePathData>& zonePathData, bool travel)
+void ZonePath_SetActive(const std::vector<ZonePathData>& zonePathData, bool travel)
 {
 	ZonePathArray pathArray(zonePathData.size());
 
@@ -252,12 +253,12 @@ static void UpdateForZoneChange()
 			if (!found)
 			{
 				std::string message;
-				auto newPath = GeneratePathToZone(s_currentZone, destZone, message);
+				auto newPath = ZonePath_GeneratePath(s_currentZone, destZone, message);
 				if (newPath.empty())
 				{
 					SPDLOG_WARN("Path generation failed: {}", message);
 				}
-				SetActiveZonePath(newPath, s_travelToActive);
+				ZonePath_SetActive(newPath, s_travelToActive);
 			}
 		}
 
@@ -291,60 +292,19 @@ void ZonePath_NavCanceled()
 	}
 }
 
-void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
+void ZonePath_Stop()
 {
 	ZoneGuideManagerClient& zoneGuide = ZoneGuideManagerClient::Instance();
 
-	if (szLine[0] == 0)
+	bool isActive = s_travelToActive || !s_activeZonePath.empty() || !zoneGuide.activePath.IsEmpty();
+
+	if (isActive)
 	{
-		if (!zoneGuide.activePath.IsEmpty())
-		{
-			SPDLOG_INFO("Following active zone path");
-			FollowActiveZonePath();
-			return;
-		}
-
-		WriteChatf(PLUGIN_MSG "Usage: /travelto [zone name]");
-		WriteChatf(PLUGIN_MSG "    Attempts to find a route to the specified zone and then travels to it.");
-		WriteChatf(PLUGIN_MSG "    If no argument is provided, and a zone path is active, /travelto will follow it.");
-		return;
+		StopTravelTo(false);
+		SPDLOG_INFO("/travelto stopped");
 	}
-
-	if (ci_equals(szLine, "stop"))
+	else
 	{
-		bool isActive = s_travelToActive || !s_activeZonePath.empty() || !zoneGuide.activePath.IsEmpty();
-
-		if (s_travelToActive)
-		{
-			SPDLOG_INFO("/travelto stopped");
-		}
-		else
-		{
-			SPDLOG_WARN("No /travelto is active.");
-		}
-
-		return;
+		SPDLOG_WARN("No /travelto is active.");
 	}
-
-	EQZoneInfo* pCurrentZone = pWorldData->GetZone(pZoneInfo->ZoneID);
-	if (!pCurrentZone)
-		return;
-
-	EQZoneInfo* pTargetZone = pWorldData->GetZone(GetZoneID(szLine));
-	if (!pTargetZone)
-	{
-		SPDLOG_ERROR("Invalid zone: {}", szLine);
-		return;
-	}
-
-	std::string message;
-	auto path = GeneratePathToZone(pCurrentZone->Id, pTargetZone->Id, message);
-	if (path.empty())
-	{
-		SPDLOG_ERROR("Failed to generate path from \ay{}\ar to \ay{}\ar: {}.",
-			pCurrentZone->LongName, pTargetZone->LongName, message);
-		return;
-	}
-
-	SetActiveZonePath(path, true);
 }

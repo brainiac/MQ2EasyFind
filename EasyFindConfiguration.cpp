@@ -13,6 +13,7 @@
 namespace fs = std::filesystem;
 
 EasyFindConfiguration* g_configuration = nullptr;
+FindableLocations g_findableLocations;
 
 const char* s_luaTranslocatorCode = R"(-- Hail translocator and say keyword
 local spawn = mq.TLO.Spawn(location.spawnName)
@@ -304,10 +305,7 @@ public:
 
 	void LoadZoneConnections()
 	{
-		if (pFindLocationWnd)
-		{
-			pFindLocationWnd.get_as<CFindLocationWndOverride>()->RemoveCustomLocations();
-		}
+		FindWindow_Reset();
 
 		if (!pZoneInfo)
 			return;
@@ -641,6 +639,11 @@ void EasyFindConfiguration::LoadZoneConnections()
 MQColor EasyFindConfiguration::GetDefaultColor(ConfiguredColor color) const
 {
 	return s_defaultColors[(int)color];
+}
+
+const std::string& EasyFindConfiguration::GetZoneConnectionsDir() const
+{
+	return m_zoneConnections->GetConfigDir();
 }
 
 //----------------------------------------------------------------------------

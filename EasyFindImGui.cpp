@@ -1,12 +1,14 @@
 
 #include "EasyFind.h"
 #include "EasyFindConfiguration.h"
+#include "EasyFindWindow.h"
 
 #include "imgui/ImGuiUtils.h"
 #include "imgui/ImGuiTextEditor.h"
 
 static imgui::TextEditor* s_luaCodeViewer = nullptr;
 static bool s_focusWindow = false;
+static bool s_showWindow = false;
 
 void DrawEasyFindSettingsPanel();
 
@@ -189,7 +191,9 @@ static void DrawEasyFindZoneConnections()
 						sprintf_s(title, "Zone Connection - %s", zoneName);
 				}
 
+				ImGui::PushFont(imgui::LargeTextFont);
 				ImGui::TextColored(MQColor(255, 255, 0).ToImColor(), title);
+				ImGui::PopFont();
 				ImGui::Separator();
 
 				ImGui::Text("Reference ID: %d", selectedRef);
@@ -437,7 +441,7 @@ static void DrawEasyFindZonePathGeneration()
 	{
 		if (pFromZone && pToZone)
 		{
-			s_zonePathTest = GeneratePathToZone(pFromZone->Id, pToZone->Id, message);
+			s_zonePathTest = ZonePath_GeneratePath(pFromZone->Id, pToZone->Id, message);
 		}
 	}
 
@@ -479,11 +483,11 @@ static void DrawEasyFindZonePathGeneration()
 
 		if (ImGui::Button("Set Active"))
 		{
-			SetActiveZonePath(s_zonePathTest, false);
+			ZonePath_SetActive(s_zonePathTest, false);
 		}
 		if (ImGui::Button("Travel"))
 		{
-			SetActiveZonePath(s_zonePathTest, true);
+			ZonePath_SetActive(s_zonePathTest, true);
 		}
 	}
 }
@@ -511,7 +515,7 @@ static void DrawEasyFindSettingsPanel_MQSettings()
 
 	if (ImGui::Button("Open EasyFind Window"))
 	{
-		g_showWindow = true;
+		s_showWindow = true;
 		s_focusWindow = true;
 	}
 }
@@ -530,7 +534,7 @@ void ImGui_Shutdown()
 
 void ImGui_OnUpdate()
 {
-	if (!g_showWindow)
+	if (!s_showWindow)
 		return;
 
 	ImGui::SetNextWindowSize(ImVec2(800, 440), ImGuiCond_FirstUseEver);
@@ -539,7 +543,7 @@ void ImGui_OnUpdate()
 		s_focusWindow = false;
 		ImGui::SetNextWindowFocus();
 	}
-	if (ImGui::Begin("EasyFind", &g_showWindow, ImGuiWindowFlags_MenuBar))
+	if (ImGui::Begin("EasyFind", &s_showWindow, ImGuiWindowFlags_MenuBar))
 	{
 		if (ImGui::BeginMenuBar())
 		{
@@ -580,4 +584,9 @@ void ImGui_OnUpdate()
 		}
 	}
 	ImGui::End();
+}
+
+void ImGui_ToggleWindow()
+{
+	s_showWindow = !s_showWindow;
 }
