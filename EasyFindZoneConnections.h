@@ -21,6 +21,8 @@ public:
 	void Load();
 	void LoadZoneConnections();
 
+	void ReloadZoneConnections();
+
 	void GenerateFindableLocations(FindableLocations& findableLocations, std::vector<ParsedFindableLocation>&& parsedLocations);
 
 	bool MigrateIniData();

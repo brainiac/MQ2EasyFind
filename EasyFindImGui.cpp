@@ -2,6 +2,7 @@
 #include "EasyFind.h"
 #include "EasyFindConfiguration.h"
 #include "EasyFindWindow.h"
+#include "EasyFindZoneConnections.h"
 
 #include "imgui/ImGuiUtils.h"
 #include "imgui/ImGuiTextEditor.h"
@@ -12,27 +13,42 @@ static bool s_showWindow = false;
 
 void DrawEasyFindSettingsPanel();
 
+static void ZoneLabel(EQZoneIndex zoneId)
+{
+	EQZoneInfo* pZoneInfo = pWorldData->GetZone(zoneId);
+	if (pZoneInfo && pZoneInfo->Id > 0)
+	{
+		ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s (%s)", pZoneInfo->LongName, pZoneInfo->ShortName);
+
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			ImGui::TextColored(MQColor(0, 255, 255).ToImColor(), pZoneInfo->LongName);
+			ImGui::Separator();
+
+			ImGui::TextUnformatted("Short name:"); ImGui::SameLine(0.0f, 4.0f); ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", pZoneInfo->ShortName);
+			ImGui::TextUnformatted("Zone ID:"); ImGui::SameLine(0.0f, 4.0f); ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%d", zoneId);
+			ImGui::TextUnformatted("Expansion:"); ImGui::SameLine(0.0f, 4.0f); ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", GetZoneExpansionName(pZoneInfo->EQExpansion));
+
+			ImGui::EndTooltip();
+		}
+	}
+	else
+	{
+		ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, .5f), "(none)");
+	}
+}
+
 static void DrawFindZoneConnectionData(const CFindLocationWnd::FindZoneConnectionData& data)
 {
 	ImGui::Text("Type:"); ImGui::SameLine(0.0f, 4.0f);
 	ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", FindLocationTypeToString(data.type));
 
-	ImGui::Text("Zone ID: %d", data.zoneId);
-
-	ImGui::Text("Zone Name:"); ImGui::SameLine(0.0f, 4.0f);
-	EQZoneInfo* pZoneInfo = pWorldData->GetZone(data.zoneId);
-	if (pZoneInfo)
-	{
-		ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s (%s)", pZoneInfo->LongName, pZoneInfo->ShortName);
-	}
-	else
-	{
-		ImGui::TextColored(MQColor(127, 127, 127).ToImColor(), "(null)");
-	}
-
+	ImGui::Text("Zone:"); ImGui::SameLine(0.0f, 4.0f); ZoneLabel(data.zoneId);
 	if (data.zoneIdentifier > 0)
 	{
-		ImGui::Text("Zone Identifier: %d", data.zoneIdentifier);
+		ImGui::Text("Zone Identifier"); ImGui::SameLine(0.0f, 4.0f);
+		ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%d", data.zoneIdentifier);
 	}
 
 	ImGui::Text("Location:"); ImGui::SameLine(0.0f, 4.0f);
@@ -40,7 +56,9 @@ static void DrawFindZoneConnectionData(const CFindLocationWnd::FindZoneConnectio
 
 	if (data.type == FindLocation_Switch)
 	{
-		ImGui::Text("Switch ID: %d", data.id);
+		ImGui::Text("Switch ID:"); ImGui::SameLine(0.0f, 4.0f);
+		ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%d", data.id);
+
 		if (data.id >= 0)
 		{
 			EQSwitch* pSwitch = GetSwitchByID(data.id);
@@ -50,7 +68,10 @@ static void DrawFindZoneConnectionData(const CFindLocationWnd::FindZoneConnectio
 		}
 	}
 
-	ImGui::Text("Sub ID: %d", data.subId);
+	if (data.subId > 0)
+	{
+		ImGui::Text("Sub ID: %d", data.subId);
+	}
 }
 
 static void DrawEasyFindZoneConnections()
@@ -338,21 +359,30 @@ static void DrawEasyFindZoneConnections()
 					ImGui::Text("Location:"); ImGui::SameLine(0.0f, 4.0f);
 					ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "(%.2f, %.2f, %.2f)", data->location.x, data->location.y, data->location.z);
 
-					ImGui::Text("Switch ID: %d", data->switchId);
-					ImGui::Text("Switch Name: %s", data->switchName.c_str());
+					if (data->switchId != -1)
+					{
+						ImGui::Text("Switch ID:"); ImGui::SameLine(0.0f, 4.0f);
+						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%d", data->switchId);
+					}
+					if (!data->switchName.empty())
+					{
+						ImGui::Text("Switch Name:"); ImGui::SameLine(0.0f, 4.0f);
+						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", data->switchName.c_str());
+					}
 
-					EQZoneInfo* pZoneInfo = pWorldData->GetZone(data->zoneId);
-					const char* zoneName = pZoneInfo ? pZoneInfo->ShortName : "(null)";
-
-					ImGui::Text("Target Zone: %s (%d)", zoneName, data->zoneId);
+					ImGui::Text("Target Zone:"); ImGui::SameLine(0.0f, 4.0f); ZoneLabel(data->zoneId);
 					if (data->zoneIdentifier > 0)
 					{
-						ImGui::Text("Zone Identifier: %d", data->zoneIdentifier);
+						ImGui::Text("Zone Identifier"); ImGui::SameLine(0.0f, 4.0f);
+						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%d", data->zoneIdentifier);
 					}
 
 					if (!data->translocatorKeyword.empty())
 					{
-						ImGui::Text("Translocator Keyword: %s", data->translocatorKeyword.c_str());
+						ImGui::Text("Translocator Keyword:"); ImGui::SameLine(0.0f, 4.0f); 
+						ImGui::PushFont(imgui::ConsoleFont);
+						ImGui::TextColored(MQColor(255, 255, 64).ToImColor(), "%s", data->translocatorKeyword.c_str());
+						ImGui::PopFont();
 					}
 
 					ImGui::Text("Replace Original:"); ImGui::SameLine(0.0f, 4.0f);
@@ -413,26 +443,10 @@ static void DrawEasyFindZonePathGeneration()
 	ImGui::Separator();
 
 	EQZoneInfo* pFromZone = pWorldData->GetZone(GetZoneID(fromZone));
-	ImGui::Text("From Zone:"); ImGui::SameLine(0.0f, 4.0f);
-	if (pFromZone)
-	{
-		ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s (%d)", pFromZone->LongName, pFromZone->Id);
-	}
-	else
-	{
-		ImGui::TextColored(MQColor(255, 255, 255, 127).ToImColor(), "(none)");
-	}
+	ImGui::Text("From Zone:"); ImGui::SameLine(0.0f, 4.0f); ZoneLabel(pFromZone ? pFromZone->Id : -1);
 
 	EQZoneInfo* pToZone = pWorldData->GetZone(GetZoneID(toZone));
-	ImGui::Text("To Zone:"); ImGui::SameLine(0.0f, 4.0f);
-	if (pToZone)
-	{
-		ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s (%d)", pToZone->LongName, pToZone->Id);
-	}
-	else
-	{
-		ImGui::TextColored(MQColor(255, 255, 255, 127).ToImColor(), "(none)");
-	}
+	ImGui::Text("To Zone:"); ImGui::SameLine(0.0f, 4.0f); ZoneLabel(pToZone ? pToZone->Id : -1);
 
 	static std::vector<ZonePathData> s_zonePathTest;
 	static std::string message;
@@ -549,9 +563,9 @@ void ImGui_OnUpdate()
 		{
 			if (ImGui::BeginMenu("File"))
 			{
-				if (ImGui::MenuItem("Reload Configuration"))
+				if (ImGui::MenuItem("Reload Zone Connections"))
 				{
-					g_configuration->ReloadSettings();
+					g_zoneConnections->ReloadZoneConnections();
 				}
 
 				ImGui::EndMenu();

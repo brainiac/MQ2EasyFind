@@ -15,7 +15,7 @@ namespace fs = std::filesystem;
 EasyFindConfiguration* g_configuration = nullptr;
 
 std::array<MQColor, (size_t)ConfiguredColor::MaxColors> s_defaultColors = {
-	MQColor(255, 192, 64),         // AddedLocation
+	MQColor(96, 255, 72),          // AddedLocation
 	MQColor(64, 192, 255),         // ModifiedLocation
 };
 

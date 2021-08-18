@@ -26,8 +26,6 @@ namespace spdlog {
 	}
 }
 
-class ZoneConnections;
-
 class EasyFindConfiguration
 {
 public:

@@ -146,7 +146,6 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 
 	if (ci_equals(szLine, "reload"))
 	{
-		SPDLOG_INFO("Reloading zone connections");
 		g_zoneConnections->LoadZoneConnections();
 		return;
 	}

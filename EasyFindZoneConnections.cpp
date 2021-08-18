@@ -207,9 +207,19 @@ void ZoneConnections::Load()
 	}
 }
 
+void ZoneConnections::ReloadZoneConnections()
+{
+	SPDLOG_INFO("Reloading zone connections");
+
+	Load();
+	LoadZoneConnections();
+}
+
 void ZoneConnections::LoadZoneConnections()
 {
 	FindWindow_Reset();
+
+	g_findableLocations.clear();
 
 	if (!pZoneInfo)
 		return;

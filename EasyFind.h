@@ -35,7 +35,7 @@ struct ParsedFindableLocation
 	int switchId = -1;                // switch num, or -1 if not set
 	std::string switchName;           // switch name, or "none"
 	std::string luaScript;
-	bool replace = false;
+	bool replace = true;
 	std::vector<ParsedTranslocatorDestination> translocatorDestinations;
 };
 
@@ -53,7 +53,7 @@ struct FindableLocation
 	std::string switchName;
 	std::string translocatorKeyword;
 	std::string luaScript;                    // lua script for zone connections
-	bool replace = false;                     // if false, we won't replace. only add if it doesn't already exist.
+	bool replace = true;                      // if false, we won't replace. only add if it doesn't already exist.
 
 	// The EQ version of this location, if it exists, and data for the ui
 	CFindLocationWnd::FindZoneConnectionData eqZoneConnectionData;
