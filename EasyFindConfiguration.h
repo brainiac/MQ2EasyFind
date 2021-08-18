@@ -37,10 +37,7 @@ public:
 	void LoadSettings();
 	void SaveSettings();
 
-	void LoadZoneConnections();
-
 	void ReloadSettings();
-	void ReloadZoneConnections();
 
 	void SetColor(ConfiguredColor color, MQColor value) { m_configuredColors[(int)color] = value; }
 	MQColor GetColor(ConfiguredColor color) const { return m_configuredColors[(int)color]; }
@@ -49,18 +46,11 @@ public:
 	void SetLogLevel(spdlog::level::level_enum level);
 	spdlog::level::level_enum GetLogLevel() const;
 
-	const std::string& GetZoneConnectionsDir() const;
-
-	void MigrationCommand();
-
 private:
 	std::string m_configFile;
 	YAML::Node m_configNode;
 
-	std::unique_ptr<ZoneConnections> m_zoneConnections;
-
 	std::shared_ptr<spdlog::sinks::sink> m_chatSink;
-
 	std::array<MQColor, (size_t)ConfiguredColor::MaxColors> m_configuredColors;
 };
 

@@ -70,12 +70,14 @@
     <ClCompile Include="EasyFindImGui.cpp" />
     <ClCompile Include="EasyFindNavigation.cpp" />
     <ClCompile Include="EasyFindWindow.cpp" />
+    <ClCompile Include="EasyFindZoneConnections.cpp" />
     <ClCompile Include="EasyFindZonePath.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EasyFind.h" />
     <ClInclude Include="EasyFindConfiguration.h" />
     <ClInclude Include="EasyFindWindow.h" />
+    <ClInclude Include="EasyFindZoneConnections.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

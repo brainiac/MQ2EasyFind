@@ -88,10 +88,6 @@ extern FindableLocations g_findableLocations;
 SPAWNINFO* FindSpawnByName(const char* spawnName, bool exact);
 void ExecuteLuaScript(std::string_view luaScript, const std::shared_ptr<FindableLocation>& findableLocation);
 
-// Configuration Handlers
-void Config_Initialize();
-void Config_Shutdown();
-
 // Find Window Handlers
 void FindWindow_Initialize();
 void FindWindow_Shutdown();

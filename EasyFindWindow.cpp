@@ -1,6 +1,7 @@
 
 #include "EasyFindWindow.h"
 #include "EasyFindConfiguration.h"
+#include "EasyFindZoneConnections.h"
 
 //----------------------------------------------------------------------------
 // 
@@ -97,7 +98,7 @@ int CFindLocationWndOverride::OnZone()
 
 	int result = Super::OnZone();
 
-	g_configuration->LoadZoneConnections();
+	g_zoneConnections->LoadZoneConnections();
 
 	return result;
 }
@@ -870,8 +871,8 @@ void CFindLocationWndOverride::OnHooked()
 	}
 
 	UpdateDistanceColumn();
-	SetWindowText("Find Window (Ctrl+Shift+Click to Navigate)");
-	g_configuration->LoadZoneConnections();
+	SetWindowText("Find Window (Ctrl+Click to Navigate)");
+	g_zoneConnections->LoadZoneConnections();
 }
 
 void CFindLocationWndOverride::OnAboutToUnhook()

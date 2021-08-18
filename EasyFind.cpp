@@ -1,6 +1,7 @@
 
 #include "EasyFind.h"
 #include "EasyFindConfiguration.h"
+#include "EasyFindZoneConnections.h"
 
 #include "plugins/lua/LuaInterface.h"
 
@@ -112,7 +113,7 @@ void ShowHelp()
 	WriteChatf(PLUGIN_MSG "    Searches the Find Window for the given \ao[search term]\ax, either exact or partial match. If found, begins navigation. "
 		"\ao[search term]\ax may also be a zone shortname. In this case, the closest zone connection matching for that zone will be found. "
 		"If \aggroup\ax is specified, the command will attempt to navigate the whole group.");
-	WriteChatf(PLUGIN_MSG "\ag/easyfind \ayreload\aw - Reload zone connections from easyfind folder: \ay%s", g_configuration->GetZoneConnectionsDir().c_str());
+	WriteChatf(PLUGIN_MSG "\ag/easyfind \ayreload\aw - Reload zone connections from easyfind folder: \ay%s", g_zoneConnections->GetConfigDir().c_str());
 	WriteChatf(PLUGIN_MSG "\ag/easyfind \ayui\aw - Toggle EasyFind ui");
 	WriteChatf(PLUGIN_MSG "\ag/easyfind \aymigrate\aw - Migrate MQ2EasyFind.ini from old MQ2EasyFind to new format");
 	WriteChatf(PLUGIN_MSG "");
@@ -138,13 +139,15 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 
 	if (ci_equals(szLine, "migrate"))
 	{
-		g_configuration->MigrationCommand();
+		g_zoneConnections->MigrateIniData();
+		// TODO: Save/Reload?
 		return;
 	}
 
 	if (ci_equals(szLine, "reload"))
 	{
-		g_configuration->ReloadZoneConnections();
+		SPDLOG_INFO("Reloading zone connections");
+		g_zoneConnections->LoadZoneConnections();
 		return;
 	}
 
@@ -221,7 +224,12 @@ PLUGIN_API void InitializePlugin()
 	WriteChatf(PLUGIN_MSG "v%s \arBETA\ax by brainiac (\aohttps://github.com/brainiac/MQ2EasyFind\ax)", EASYFIND_PLUGIN_VERSION);
 	WriteChatf(PLUGIN_MSG "Type \ag/easyfind help\ax for more info.");
 
-	Config_Initialize();
+	g_configuration = new EasyFindConfiguration();
+
+	// Zone connections and other navigation data is stored here
+	std::string easyfindDir = (std::filesystem::path(gPathResources) / "EasyFind").string();
+	g_zoneConnections = new ZoneConnections(easyfindDir);
+
 	ImGui_Initialize();
 	Navigation_Initialize();
 	Lua_Initialize();
@@ -240,7 +248,9 @@ PLUGIN_API void ShutdownPlugin()
 	Lua_Shutdown();
 	FindWindow_Shutdown();
 	ImGui_Shutdown();
-	Config_Shutdown();
+
+	delete g_configuration;
+	delete g_zoneConnections;
 }
 
 PLUGIN_API void OnCleanUI()
