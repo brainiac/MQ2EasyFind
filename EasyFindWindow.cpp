@@ -541,7 +541,7 @@ CVector3 CFindLocationWndOverride::GetReferencePosition(FindableReference* ref, 
 	{
 		const FindZoneConnectionData& zoneConn = unfilteredZoneConnectionList[ref->index];
 
-		if (zoneConn.location.X != 0.0f && zoneConn.location.Y != 0.0f && zoneConn.location.Z != 0.0f)
+		if (zoneConn.location.X != 0.0f || zoneConn.location.Y != 0.0f || zoneConn.location.Z != 0.0f)
 		{
 			found = true;
 			return zoneConn.location;
