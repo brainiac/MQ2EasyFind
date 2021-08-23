@@ -17,13 +17,16 @@ bool Navigation_ExecuteCommand(FindLocationRequestState&& request)
 		return false;
 
 	g_activeFindState = std::move(request);
+	g_activeFindState.pending = true;
 
-	char command[256] = { 0 };
+	std::string command;
+	fmt::string_view logLevel = spdlog::level::to_string_view(g_configuration->GetNavLogLevel());
 
 	if (g_activeFindState.type == FindLocation_Player)
 	{
 		// nav by spawnID:
-		sprintf_s(command, "spawn id %d | dist=15 log=warning tag=easyfind", g_activeFindState.spawnID);
+		command = fmt::format("spawn id {} | dist={} log={} tag=easyfind", g_activeFindState.spawnID,
+			g_configuration->GetNavDistance(), logLevel);
 	}
 	else if (g_activeFindState.type == FindLocation_Switch || g_activeFindState.type == FindLocation_Location)
 	{
@@ -31,24 +34,29 @@ bool Navigation_ExecuteCommand(FindLocationRequestState&& request)
 		{
 			if (!g_activeFindState.findableLocation->spawnName.empty())
 			{
-				sprintf_s(command, "spawn %s | dist=15 log=warning tag=easyfind", g_activeFindState.findableLocation->spawnName.c_str());
+				command = fmt::format("spawn {} | dist={} log={} tag=easyfind",
+					g_activeFindState.findableLocation->spawnName, g_configuration->GetNavDistance(), logLevel);
 			}
 		}
 
-		if (command[0] == 0)
+		if (command.empty())
 		{
 			if (g_activeFindState.location != glm::vec3())
 			{
 				glm::vec3 loc = g_activeFindState.location;
-				loc.z = pDisplay->GetFloorHeight(loc.x, loc.y, loc.z, 2.0f);
-				sprintf_s(command, "locyxz %.2f %.2f %.2f log=warning tag=easyfind", loc.x, loc.y, loc.z);
+
+				float newHeight = pDisplay->GetFloorHeight(loc.x, loc.y, loc.z, 2.0f);
+				if (newHeight > -32000.f)
+					loc.z = newHeight;
+
+				command = fmt::format("locyxz {:.2f} {:.2f} {:.2f} log={} tag=easyfind", loc.x, loc.y, loc.z, logLevel);
 
 				if (g_activeFindState.type == FindLocation_Switch)
 					g_activeFindState.activateSwitch = true;
 			}
 			else if (g_activeFindState.type == FindLocation_Switch)
 			{
-				sprintf_s(command, "door id %d click log=warning tag=easyfind", g_activeFindState.switchID);
+				command = fmt::format("door id {} click log={} tag=easyfind", g_activeFindState.switchID, logLevel);
 			}
 		}
 	}
@@ -60,6 +68,14 @@ bool Navigation_ExecuteCommand(FindLocationRequestState&& request)
 	}
 
 	return false;
+}
+
+void Navigation_Stop()
+{
+	if (!s_nav)
+		return;
+
+	s_nav->ExecuteNavCommand("stop log=off");
 }
 
 void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandState& commandState, void* userData)
@@ -85,6 +101,7 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 	if (eventType == nav::NavObserverEvent::NavStarted)
 	{
 		g_activeFindState.valid = true;
+		g_activeFindState.pending = false;
 	}
 	else if (eventType == nav::NavObserverEvent::NavDestinationReached)
 	{
@@ -116,7 +133,20 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 		{
 			g_activeFindState.valid = false;
 
-			ZonePath_NavCanceled();
+			ZonePath_NavCanceled(true);
+		}
+	}
+	else if (eventType == nav::NavObserverEvent::NavFailed)
+	{
+		if (g_activeFindState.pending)
+		{
+			g_activeFindState.valid = false;
+			g_activeFindState.pending = false;
+
+			SPDLOG_ERROR("Failed to find a path to the destination. This location may require some fixes: \ay{}",
+				g_activeFindState.name);
+
+			ZonePath_NavCanceled(false);
 		}
 	}
 }
@@ -157,6 +187,7 @@ void Navigation_BeginZone()
 {
 	// TODO: Zoning while nav is active counts as a cancel, but maybe it shouldn't.
 	g_activeFindState.valid = false;
+	g_activeFindState.pending = false;
 }
 
 bool Navigation_IsInitialized()

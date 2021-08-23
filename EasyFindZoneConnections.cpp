@@ -5,11 +5,9 @@
 
 namespace fs = std::filesystem;
 
-FindableLocations g_findableLocations;
-
 const char* s_luaTranslocatorCode = R"(-- Hail translocator and say keyword
-local spawn = mq.TLO.Spawn(location.spawnName)
-if spawn ~= nil then
+local spawn = mq.TLO.NearestSpawn('npc ' .. location.spawnName)
+if spawn() ~= nil then
 	spawn.DoTarget()
 	mq.delay(500)
 	mq.cmd("/hail")
@@ -83,6 +81,22 @@ namespace YAML
 				return false;
 			}
 
+			if (node["expansion"].IsDefined())
+			{
+				std::string expansionName = node["expansion"].as<std::string>(std::string());
+				int expansionNum = GetExpansionNumber(expansionName);
+				if (expansionNum > 0)
+					data.requiredExpansions = (EQExpansionOwned)EQ_EXPANSION(expansionNum);
+			}
+
+			YAML::Node achievementNode = node["requiredAchievement"];
+			if (achievementNode.IsDefined())
+			{
+				data.requiredAchievement = achievementNode.as<int>(0);
+				if (data.requiredAchievement == 0)
+					data.requiredAchievementName = achievementNode.as<std::string>(std::string());
+			}
+
 			data.typeString = node["type"].as<std::string>();
 			if (ci_equals(data.typeString, "ZoneConnection"))
 			{
@@ -122,6 +136,8 @@ namespace YAML
 				data.zoneIdentifier = node["identifier"].as<int>(0);
 				data.replace = node["replace"].as<bool>(true);
 				data.luaScript = node["script"].as<std::string>(std::string());
+				if (data.luaScript.empty())
+					data.luaScriptFile = node["scriptFile"].as<std::string>(std::string());
 				return true;
 			}
 			else if (ci_equals(data.typeString, "Translocator"))
@@ -170,6 +186,41 @@ namespace YAML
 	};
 }
 
+bool ParsedFindableLocation::IsZoneConnection() const
+{
+	if (zoneId != 0)
+		return true;
+	for (const auto& dest : translocatorDestinations)
+	{
+		if (dest.zoneId != 0)
+			return true;
+	}
+	return false;
+}
+
+bool ParsedFindableLocation::CheckRequirements() const
+{
+	// check expansion. We only track the expansion num so convert to flags and check that its set.
+	if (requiredExpansions != 0 && pEverQuestInfo->bProgressionServer)
+	{
+		if ((pEverQuestInfo->ProgressionOpenExpansions & requiredExpansions) == 0)
+			return false;
+	}
+
+	if (requiredAchievement != 0)
+	{
+		if (!IsAchievementComplete(GetAchievementById(requiredAchievement)))
+			return false;
+	}
+	else if (!requiredAchievementName.empty())
+	{
+		if (!IsAchievementComplete(GetAchievementByName(requiredAchievementName)))
+			return false;
+	}
+
+	return true;
+}
+
 ZoneConnections::ZoneConnections(const std::string& configDirectory)
 	: m_configDirectory(configDirectory)
 {
@@ -207,85 +258,88 @@ void ZoneConnections::Load()
 	}
 }
 
-void ZoneConnections::ReloadZoneConnections()
+void ZoneConnections::ReloadFindableLocations()
 {
 	SPDLOG_INFO("Reloading zone connections");
 
 	Load();
-	LoadZoneConnections();
+	LoadFindableLocations();
 }
 
-void ZoneConnections::LoadZoneConnections()
+void ZoneConnections::LoadFindableLocations()
 {
 	FindWindow_Reset();
 
-	g_findableLocations.clear();
-
-	if (!pZoneInfo)
-		return;
-
-	EQZoneInfo* zoneInfo = pWorldData->GetZone(pZoneInfo->ZoneID);
-	if (!zoneInfo)
-		return;
-	const char* shortName = zoneInfo->ShortName;
-
-	FindableLocations newLocations;
+	FindableLocationsMap locationMap;
 
 	try
 	{
-		// Load objects from the AddFindLocations block
+		ParsedFindableLocationsMap newLocations;
+
+		// Load objects from the FindLocations block
 		YAML::Node addFindLocations = m_zoneConnectionsConfig["FindLocations"];
 		if (addFindLocations.IsMap())
 		{
-			YAML::Node zoneNode = addFindLocations[shortName];
-			if (zoneNode.IsDefined())
-			{
-				std::vector<ParsedFindableLocation> parsedLocations = zoneNode.as<std::vector<ParsedFindableLocation>>();
-				GenerateFindableLocations(newLocations, std::move(parsedLocations));
-			}
+			newLocations = addFindLocations.as<ParsedFindableLocationsMap>();
+		}
+
+		// move the findable locations into place.
+		for (auto& [name, locations] : newLocations)
+		{
+			EZZoneData& data = m_findableLocations[name];
+
+			data.findableLocations = std::move(locations);
 		}
 	}
 	catch (const YAML::Exception& ex)
 	{
 		// failed to parse, notify and return
-		SPDLOG_ERROR("Failed to load zone settings for {}: {}", shortName, ex.what());
+		SPDLOG_ERROR("Failed to load zone connections: {}", ex.what());
 	}
 
-	g_findableLocations = std::move(newLocations);
+	FindWindow_LoadZoneConnections();
 }
 
-void ZoneConnections::GenerateFindableLocations(FindableLocations& findableLocations, std::vector<ParsedFindableLocation>&& parsedLocations)
+void ZoneConnections::CreateFindableLocations(FindableLocations& findableLocations, std::string_view shortName)
 {
+	auto iter = m_findableLocations.find(shortName);
+	if (iter == m_findableLocations.end())
+		return;
+
+	std::vector<ParsedFindableLocation>& parsedLocations = iter->second.findableLocations;
+
 	findableLocations.reserve(parsedLocations.size());
 
-	for (ParsedFindableLocation& parsedLocation : parsedLocations)
+	for (const ParsedFindableLocation& parsedLocation : parsedLocations)
 	{
 		switch (parsedLocation.type)
 		{
 		case LocationType::Location:
 		case LocationType::Switch: {
 			FindableLocation loc;
+			loc.parsedData = &parsedLocation;
 			loc.easyfindType = parsedLocation.type;
 			loc.type = (parsedLocation.type == LocationType::Location) ? FindLocation_Location : FindLocation_Switch;
-			loc.location = std::move(parsedLocation.location);
-			loc.name = std::move(parsedLocation.name);
+			loc.location = parsedLocation.location;
+			loc.name = parsedLocation.name;
 			loc.zoneId = parsedLocation.zoneId;
 			loc.zoneIdentifier = parsedLocation.zoneIdentifier;
 			loc.switchId = parsedLocation.switchId;
-			loc.switchName = std::move(parsedLocation.switchName);
-			loc.luaScript = std::move(parsedLocation.luaScript);
+			loc.switchName = parsedLocation.switchName;
+			loc.luaScript = parsedLocation.luaScript;
 			loc.replace = parsedLocation.replace;
-			findableLocations.push_back(std::move(loc));
+			findableLocations.push_back(loc);
 			break;
 		}
 
 		case LocationType::Translocator: {
 			FindableLocation loc;
+			loc.parsedData = &parsedLocation;
 			loc.easyfindType = parsedLocation.type;
 			loc.type = FindLocation_Location;
-			loc.spawnName = std::move(parsedLocation.name);
+			loc.spawnName = parsedLocation.name;
 
-			for (ParsedTranslocatorDestination& dest : parsedLocation.translocatorDestinations)
+			for (const ParsedTranslocatorDestination& dest : parsedLocation.translocatorDestinations)
 			{
 				FindableLocation transLoc = loc;
 				transLoc.zoneId = dest.zoneId;
@@ -293,7 +347,7 @@ void ZoneConnections::GenerateFindableLocations(FindableLocations& findableLocat
 				transLoc.translocatorKeyword = dest.keyword;
 
 				transLoc.luaScript = s_luaTranslocatorCode;
-				findableLocations.push_back(std::move(transLoc));
+				findableLocations.push_back(transLoc);
 			}
 			break;
 		}
@@ -304,10 +358,25 @@ void ZoneConnections::GenerateFindableLocations(FindableLocations& findableLocat
 	}
 }
 
+const std::vector<ParsedFindableLocation>& ZoneConnections::GetFindableLocations(EQZoneIndex zoneId) const
+{
+	const char* zoneName = GetShortZone(zoneId);
+
+	auto iter = m_findableLocations.find(zoneName);
+	if (iter == m_findableLocations.end())
+	{
+		static std::vector<ParsedFindableLocation> empty;
+		return empty;
+	}
+
+	return iter->second.findableLocations;
+}
+
 bool ZoneConnections::MigrateIniData()
 {
 	if (!pWorldData)
 	{
+		SPDLOG_WARN("Zone data is not available, try again later...");
 		return false; // TODO: Retry later
 	}
 
@@ -437,4 +506,21 @@ bool ZoneConnections::MigrateIniData()
 		SPDLOG_INFO("Migrated {} zone connections from MQ2EasyFind.ini", count);
 	}
 	return true;
+}
+
+void ZoneConnections::Pulse()
+{
+	if (GetGameState() != GAMESTATE_INGAME)
+	{
+		m_zoneDataLoaded = false;
+		return;
+	}
+
+	if (!m_zoneDataLoaded
+		&& ZoneGuideManagerClient::Instance().zoneGuideDataSet)
+	{
+		g_configuration->RefreshTransferTypes();
+
+		m_zoneDataLoaded = true;
+	}
 }

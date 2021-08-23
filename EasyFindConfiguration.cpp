@@ -27,16 +27,9 @@ namespace YAML
 	struct convert<spdlog::level::level_enum> {
 		static Node encode(spdlog::level::level_enum data) {
 			Node node;
-			switch (data) {
-			case spdlog::level::trace: node = "trace"; break;
-			case spdlog::level::debug: node = "debug"; break;
-			case spdlog::level::info: node = "info"; break;
-			case spdlog::level::warn: node = "warn"; break;
-			case spdlog::level::err: node = "error"; break;
-			case spdlog::level::critical: node = "critical"; break;
-			case spdlog::level::off: node = "off"; break;
-			default: node = "info"; break;
-			}
+
+			auto sv = spdlog::level::to_string_view(data);
+			node = std::string(sv.data(), sv.size());
 			return node;
 		}
 		static bool decode(const Node& node, spdlog::level::level_enum& data) {
@@ -44,16 +37,7 @@ namespace YAML
 				return false;
 			}
 			std::string nodeValue = node.as<std::string>(std::string());
-			if (nodeValue == "trace") { data = spdlog::level::trace; return true; }
-			if (nodeValue == "debug") { data = spdlog::level::debug; return true; }
-			if (nodeValue == "info") { data = spdlog::level::info; return true; }
-			if (nodeValue == "warn") { data = spdlog::level::warn; return true; }
-			if (nodeValue == "error") { data = spdlog::level::err; return true; }
-			if (nodeValue == "critical") { data = spdlog::level::critical; return true; }
-			if (nodeValue == "off") { data = spdlog::level::off; return true; }
-
-			// just set a default value in unexpected case...
-			data = spdlog::level::info;
+			data = spdlog::level::from_str(nodeValue);
 			return true;
 		}
 	};
@@ -142,11 +126,26 @@ void EasyFindConfiguration::SetLogLevel(spdlog::level::level_enum level)
 {
 	m_chatSink->set_level(level);
 	m_configNode["GlobalLogLevel"] = level;
+
+	SaveSettings();
 }
 
 spdlog::level::level_enum EasyFindConfiguration::GetLogLevel() const
 {
 	return m_chatSink->level();
+}
+
+void EasyFindConfiguration::SetNavLogLevel(spdlog::level::level_enum level)
+{
+	m_navLogLevel = level;
+	m_configNode["NavLogLevel"] = level;
+
+	SaveSettings();
+}
+
+spdlog::level::level_enum EasyFindConfiguration::GetNavLogLevel() const
+{
+	return m_navLogLevel;
 }
 
 void EasyFindConfiguration::ReloadSettings()
@@ -163,6 +162,8 @@ void EasyFindConfiguration::LoadSettings()
 
 		spdlog::level::level_enum globalLogLevel = m_configNode["GlobalLogLevel"].as<spdlog::level::level_enum>(spdlog::level::info);
 		SetLogLevel(globalLogLevel);
+
+		LoadDisabledTransferTypes();
 	}
 	catch (const YAML::ParserException& ex)
 	{
@@ -186,8 +187,8 @@ void EasyFindConfiguration::SaveSettings()
 	{
 		YAML::Emitter y_out;
 		y_out.SetIndent(4);
-		y_out.SetFloatPrecision(3);
-		y_out.SetDoublePrecision(3);
+		y_out.SetFloatPrecision(2);
+		y_out.SetDoublePrecision(2);
 		y_out << m_configNode;
 
 		file << y_out.c_str();
@@ -197,4 +198,142 @@ void EasyFindConfiguration::SaveSettings()
 MQColor EasyFindConfiguration::GetDefaultColor(ConfiguredColor color) const
 {
 	return s_defaultColors[(int)color];
+}
+
+//----------------------------------------------------------------------------
+
+void EasyFindConfiguration::RefreshTransferTypes()
+{
+	// These are always disabled because they require configuration to make them work.
+	static const std::vector<std::string> unsupportedTransferTypeNames = {
+		//"Gate",
+		//"Zone Line",
+		//"Door",
+		//"Keyed Door",
+		//"Knowledge Tome",
+		"Boat",
+		"Wizard's Spire",
+		"Translocator",
+		"Magus",
+		//"Other",
+		"Priest of Discord",
+		//"Crystal",
+		//"Rubble",
+		//"Passage",
+		//"Portal",
+		//"Tree",
+		//"Pedestal",
+		//"Statue",
+		//"Ladder",
+		//"Tomb",
+		//"Knowledge Stone",
+		//"Lever",
+		//"Pillar",
+		//"Broken Mirror",
+		//"Skull",
+		//"Platform",
+	};
+
+	const ZoneGuideManagerClient& mgr = ZoneGuideManagerClient::Instance();
+	size_t numTransferTypes = mgr.transferTypes.size();
+
+	// these things are hard-coded to disabled above because they always need
+	// extra information to make them work.
+	m_supportedTransferTypes.resize(numTransferTypes);
+	for (size_t i = 0; i < numTransferTypes; ++i)
+	{
+		const ZoneGuideTransferType& transferType = mgr.transferTypes[i];
+		m_supportedTransferTypes[i] = true;
+
+		for (const std::string& defaults : unsupportedTransferTypeNames)
+		{
+			if (transferType.description == defaults)
+			{
+				m_supportedTransferTypes[i] = false;
+				break;
+			}
+		}
+	}
+
+	// These are a bit hit-and-miss and so we let the user decide.
+	m_disabledTransferTypes.resize(numTransferTypes);
+	for (size_t i = 0; i < numTransferTypes; ++i)
+	{
+		const ZoneGuideTransferType& transferType = mgr.transferTypes[i];
+
+		for (const std::string& defaults : m_disabledTransferTypesPrefs)
+		{
+			if (transferType.description == defaults)
+			{
+				m_disabledTransferTypes[i] = true;
+				break;
+			}
+		}
+
+		m_disabledTransferTypes[i] = false;
+	}
+}
+
+void EasyFindConfiguration::LoadDisabledTransferTypes()
+{
+	std::vector<std::string> disabledTransferTypes;
+
+	YAML::Node node = m_configNode["DisabledTransferTypes"];
+	if (node.IsDefined())
+	{
+		disabledTransferTypes = node.as<std::vector<std::string>>(std::vector<std::string>());
+	}
+
+	m_disabledTransferTypesPrefs = std::move(disabledTransferTypes);
+}
+
+bool EasyFindConfiguration::IsSupportedTransferType(int transferTypeIndex) const
+{
+	if (transferTypeIndex < 0 || transferTypeIndex >= (int)m_supportedTransferTypes.size())
+		return false;
+
+	return m_supportedTransferTypes[transferTypeIndex];
+}
+
+bool EasyFindConfiguration::IsDisabledTransferType(int transferTypeIndex) const
+{
+	if (transferTypeIndex < 0 || transferTypeIndex >= (int)m_supportedTransferTypes.size())
+		return true;
+
+	if (!m_supportedTransferTypes[transferTypeIndex])
+		return true;
+
+	return m_disabledTransferTypes[transferTypeIndex];
+}
+
+void EasyFindConfiguration::SetDisabledTransferType(int transferTypeIndex, bool disabled)
+{
+	if (transferTypeIndex < 0 || transferTypeIndex >= (int)m_supportedTransferTypes.size())
+		return;
+
+	m_disabledTransferTypes[transferTypeIndex] = disabled;
+
+	CXStr transferTypeName = ZoneGuideManagerClient::Instance().GetZoneTransferTypeNameByIndex(transferTypeIndex);
+
+	if (transferTypeName.empty())
+		return;
+
+	auto iter = std::find_if(
+		m_disabledTransferTypesPrefs.begin(), m_disabledTransferTypesPrefs.end(),
+		[&](const std::string& value) { return value == transferTypeName; });
+
+	if (disabled)
+	{
+		if (iter == m_disabledTransferTypesPrefs.end())
+			m_disabledTransferTypesPrefs.push_back(std::string(transferTypeName));
+
+		SaveSettings();
+	}
+	else
+	{
+		if (iter != m_disabledTransferTypesPrefs.end())
+			m_disabledTransferTypesPrefs.erase(iter);
+
+		SaveSettings();
+	}
 }

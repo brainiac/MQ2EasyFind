@@ -1,8 +1,20 @@
 FindLocations:
+    abysmal:
+        -   type: Translocator
+            name: Magus Pellen
+            destinations:
+                -   keyword: Natimbi
+                    targetZone: natimbi
+                -   keyword: Nedaria's Landing
+                    targetZone: nedaria
     arelis:
         -   type: ZoneConnection
             switch: 2
             targetZone: resplendent
+    atiiki:
+        -   type: ZoneConnection
+            switch: 14
+            targetZone: kattacastrum
     beholder:
         -   type: ZoneConnection
             location: [-1869, 902, 1]
@@ -25,7 +37,7 @@ FindLocations:
             targetZone: potranquility
     broodlands:
         -   type: ZoneConnection
-            location: [-1114.35998, -1973.86999, 8.71000003]
+            location: [-1114.36, -1973.87, 8.71]
             targetZone: lavastorm
     burningwood:
         -   type: ZoneConnection
@@ -33,11 +45,35 @@ FindLocations:
             targetZone: dreadlands
     butcher:
         -   type: ZoneConnection
-            location: [3145, -180, 1.87999999]
+            location: [3145, -180, 1.88]
             targetZone: kaladima
-        -   type: ZoneConnection
-            location: [1350, 3263, 9.75]
+        -   type: Translocator
+            name: Magus Tira
+            keyword: Nedaria's Landing
+            targetZone: nedaria
+            expansion: Lost Dungeons of Norrath
+        -   type: Translocator
+            name: Magus Tira
+            destinations:
+                -   keyword: Commonlands
+                    targetZone: commonlands
+                -   keyword: Everfrost
+                    targetZone: everfrost
+                -   keyword: North Ro
+                    targetZone: northro
+                -   keyword: South Ro
+                    targetZone: southro
+            expansion: Lost Dungeons of Norrath
+            requiredAchievement: 500980300
+        -   type: Translocator
+            name: '#Translocator Fithop'
+            keyword: Travel to Ocean of Tears
+            targetZone: oceanoftears
+        -   type: Translocator
+            name: '#Translocator Gethia'
+            keyword: Travel to Timorous Deep
             targetZone: timorous
+            expansion: Kunark
     cityofbronze:
         -   type: ZoneConnection
             location: [-950, -2825, 52]
@@ -50,13 +86,29 @@ FindLocations:
             name: Magus Zeir
             keyword: Nedaria's Landing
             targetZone: nedaria
+            expansion: Lost Dungeons of Norrath
+        -   type: Translocator
+            name: Magus Zeir
+            destinations:
+                -   keyword: Butcherblock
+                    targetZone: butcher
+                -   keyword: Commonlands
+                    targetZone: commonlands
+                -   keyword: Everfrost
+                    targetZone: everfrost
+                -   keyword: North Ro
+                    targetZone: northro
+                -   keyword: South Ro
+                    targetZone: southro
+            expansion: Lost Dungeons of Norrath
+            requiredAchievement: 500980300
     corathus:
         -   type: ZoneConnection
-            location: [-390.25, -135.460006, -63.7000007]
+            location: [-390.25, -135.46, -63.70]
             targetZone: nektulos
     crescent:
         -   type: ZoneConnection
-            location: [-880, -2760, -56.5699996]
+            location: [-880, -2760, -56.57]
             targetZone: moors
     dawnshroud:
         -   type: ZoneConnection
@@ -74,9 +126,14 @@ FindLocations:
         -   type: ZoneConnection
             switch: 6
             targetZone: mechanotus
+    draniksscar:
+        -   type: Translocator
+            name: Elder Priest of Discord
+            keyword: go home
+            targetZone: poknowledge
     dreadspire:
         -   type: ZoneConnection
-            location: [-1051, 1410.27001, -571]
+            location: [-1051, 1410.27, -571]
             targetZone: drachnidhive
     dulak:
         -   type: ZoneConnection
@@ -101,18 +158,52 @@ FindLocations:
         -   type: ZoneConnection
             location: [-1780, 6720, 132]
             targetZone: greatdivide
+    eastwastestwo:
+        -   type: Translocator
+            name: '#Deaen Greyforge'
+            keyword: get on
+            targetZone: northro
     emeraldjungle:
         -   type: ZoneConnection
-            location: [-1967.98999, 5400, 1]
+            location: [-1967.99, 5400, 1]
             targetZone: fieldofbone
         -   type: ZoneConnection
             location: [-3445, 1550, -344]
             targetZone: trakanon
+    erudnext:
+        -   type: Translocator
+            name: '#Translocator Eniela'
+            keyword: Erud's Crossing
+            targetZone: erudsxing
+    erudsxing:
+        -   type: Translocator
+            name: '#Translocator Jempar'
+            destinations:
+            -   keyword: Qeynos
+                targetZone: qeynos
+            -   keyword: Erudin
+                targetZone: erudin
     everfrost:
         -   type: Translocator
             name: Magus Delin
             keyword: Nedaria's Landing
             targetZone: nedaria
+            expansion: Lost Dungeons of Norrath
+        -   type: Translocator
+            name: Magus Delin
+            destinations:
+            -   keyword: Nedaria's Landing
+                targetZone: nedaria
+            -   keyword: Butcherblock
+                targetZone: butcher
+            -   keyword: Commonlands
+                targetZone: commonlands
+            -   keyword: North Ro
+                targetZone: northro
+            -   keyword: South Ro
+                targetZone: southro
+            expansion: Lost Dungeons of Norrath
+            requiredAchievement: 500980300
     feerrott:
         -   type: ZoneConnection
             location: [400, 3410, 6]
@@ -137,25 +228,34 @@ FindLocations:
             targetZone: warslikswood
             identifier: 2
     firiona:
+        -   type: Translocator
+            name: '#Translocator Drabilt'
+            keyword: travel to Timorous Deep
+            targetZone: timorous
         -   type: ZoneConnection
-            location: [1245.11999, 3538.5, 206.100006]
+            location: [1245.12, 3538.5, 206.10]
             targetZone: lakeofillomen
         -   type: ZoneConnection
-            location: [5011.12011, -2670, -0.0700000002]
+            location: [5011.12, -2670, -0.070]
             targetZone: swampofnohope
             identifier: 1
         -   type: ZoneConnection
-            location: [5011.12011, -2630, -0.0700000002]
+            location: [5011.12, -2630, -0.070]
             targetZone: swampofnohope
             identifier: 2
         -   type: ZoneConnection
-            location: [5011.12011, -2170, -8.06999969]
+            location: [5011.12, -2170, -8.07]
             targetZone: swampofnohope
             identifier: 3
         -   type: ZoneConnection
-            location: [4950, 2696.37988, 2.05999994]
+            location: [4950, 2696.38, 2.06]
             targetZone: swampofnohope
             identifier: 4
+    freeporteast:
+        -   type: Translocator
+            name: '#Translocator Setikan'
+            keyword: travel to Ocean of Tears
+            targetZone: oceanoftears
     freeportwest:
         -   type: ZoneConnection
             location: [290, -1730, -112]
@@ -166,11 +266,11 @@ FindLocations:
             targetZone: freporte
             identifier: 2
         -   type: ZoneConnection
-            location: [38.4900016, 410.920013, -17.3899993]
+            location: [38.49, 410.92, -17.39]
             targetZone: commonlands
     frontiermtns:
         -   type: ZoneConnection
-            location: [-2335, 4280, -454.459991]
+            location: [-2335, 4280, -454.46]
             targetZone: burningwood
     greatdivide:
         -   type: ZoneConnection
@@ -210,6 +310,22 @@ FindLocations:
             name: Magus Alaria
             keyword: Nedaria's Landing
             targetZone: nedaria
+            expansion: Lost Dungeons of Norrath
+        -   type: Translocator
+            name: Magus Alaria
+            destinations:
+                -   keyword: Butcherblock
+                    targetZone: butcher
+                -   keyword: Commonlands
+                    targetZone: commonlands
+                -   keyword: Everfrost
+                    targetZone: everfrost
+                -   keyword: North Ro
+                    targetZone: northro
+                -   keyword: South Ro
+                    targetZone: southro
+            expansion: Lost Dungeons of Norrath
+            requiredAchievement: 500980300
     gyrospireb:
         -   type: ZoneConnection
             switch: 2
@@ -223,22 +339,35 @@ FindLocations:
             targetZone: guktop
     kaladima:
         -   type: ZoneConnection
-            location: [400.25, -260, 1.87999999]
+            location: [400.25, -260, 1.88]
             targetZone: kaladimb
             identifier: 1
         -   type: ZoneConnection
-            location: [430, 330, -17.3299999]
+            location: [430, 330, -17.33]
             targetZone: kaladimb
             identifier: 2
     kaladimb:
         -   type: ZoneConnection
-            location: [345, -228, 3.85999989]
+            location: [345, -228, 3.86]
             targetZone: kaladima
             identifier: 1
         -   type: ZoneConnection
             location: [400, 340, -20]
             targetZone: kaladima
             identifier: 2
+    kattacastrum:
+        -   type: ZoneConnection
+            switch: 28
+            targetZone: thalassius
+        -   type: ZoneConnection
+            switch: 27
+            targetZone: jewelofatiki
+        -   type: ZoneConnection
+            switch: 29
+            targetZone: zhisza
+        -   type: ZoneConnection
+            switch: 122
+            targetZone: buriedsea
     kattacastrumb:
         -   type: ZoneConnection
             switch: 122
@@ -249,11 +378,31 @@ FindLocations:
             targetZone: warslikswood
     lavastorm:
         -   type: ZoneConnection
-            location: [1113.97998, 1082.89001, -79.3199996]
+            location: [1113.98, 1082.89, -79.32]
             targetZone: soldunga
         -   type: ZoneConnection
-            location: [3868.65991, 132.380004, -4.30999994]
+            location: [3868.66, 132.38, -4.31]
             targetZone: broodlands
+            expansion: Dragons of Norrath
+    lceanium:
+        -   type: ZoneConnection
+            targetZone: nexus
+            name: 'Nexus'
+            switch: OBJ_ROCK_A
+            script: |
+                -- FIXME
+                mq.delay(30000, function () return not mq.TLO.Me.Moving() end)
+                mq.cmd.nav('loc 1340.52 1431.23 -57.15')
+                mq.delay(2000)
+                mq.delay(30000, function () return not mq.TLO.Me.Moving() end)
+                mq.cmd.docommand('/makemevisible')
+                mq.cmdf('/target Greeter')
+                mq.cmdf('/say Spire Stone of Lceanium')
+                mq.delay(2000)
+                if (mq.TLO.Cursor.Name() == "Spire Stone of Lceanium") then
+                    mq.cmd.autoinventory() 
+                    mq.cmd.nav('loc 1349.14 1454.84 -55.62')
+                end
     lfaydark:
         -   type: ZoneConnection
             location: [2185, -1199, 0]
@@ -270,6 +419,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [-404, -2331, -156]
             targetZone: umbral
+    thalassius:
+        -   type: ZoneConnection
+            switch: 7
+            targetZone: kattacastrum
     umbral:
         -   type: ZoneConnection
             switch: 0
@@ -285,7 +438,23 @@ FindLocations:
         -   type: ZoneConnection
             switch: 1
             targetZone: gyrospireb
+    natimbi:
+        -   type: Translocator
+            name: Magus Releua
+            destinations:
+                -   keyword: Abysmal Sea
+                    targetZone: abysmal
+                -   keyword: Nedaria's Landing
+                    targetZone: nedaria
     nedaria:
+        -   type: Translocator
+            name: Magus Wenla
+            destinations:
+                -   keyword: Abysmal Sea
+                    targetZone: abysmal
+                -   keyword: Natimbi
+                    targetZone: natimbi
+            expansion: Gates of Discord
         -   type: Translocator
             name: Magus Wenla
             destinations:
@@ -299,10 +468,26 @@ FindLocations:
                     targetZone: northro
                 -   keyword: South Ro
                     targetZone: southro
-                -   keyword: Abysmal Sea
-                    targetZone: abysmal
-                -   keyword: Natimbi
-                    targetZone: natimbi
+            expansion: Lost Dungeons of Norrath
+    nexus:
+        -   type: ZoneConnection
+            targetZone: lceanium
+            name: 'Lceanium'
+            switch: ACDOORS310
+            script: |
+                mq.delay(30000, function () return not mq.TLO.Me.Moving() end)
+                mq.cmd.nav('loc -48.76 -12.27 -30.96')
+                mq.delay(2000)
+                mq.delay(30000, function () return not mq.TLO.Me.Moving() end)
+                mq.cmd.docommand('/makemevisible')
+                mq.cmdf('/target Kardador')
+                mq.cmdf('/say Spire Stone of Lceanium')
+                mq.delay(2000)
+                if (mq.TLO.Cursor.Name() == "Spire Stone of Lceanium") then
+                    mq.cmd.autoinventory() 
+                    mq.cmd.nav('loc 0.69 -4.05 -30.24')
+                end
+            expansion: Empires of Kunark
     neighborhood:
         -   type: ZoneConnection
             switch: 134
@@ -322,20 +507,48 @@ FindLocations:
             targetZone: neriakd
     northkarana:
         -   type: ZoneConnection
-            location: [20, -3200, -33.5900001]
+            location: [20, -3200, -33.59]
             targetZone: eastkarana
     northro:
         -   type: ZoneConnection
-            location: [5221, -2533, -3.60999989]
+            location: [5221, -2533, -3.61]
             targetZone: southro
             identifier: 1
-        -   type: ZoneConnection
-            location: [6641.91015, -371.48999, 45.4900016]
-            targetZone: commonlands
+        -   type: Translocator
+            name: Magus Arindri
+            keyword: Nedaria's Landing
+            targetZone: nedaria
+            expansion: Lost Dungeons of Norrath
+        -   type: Translocator
+            name: Magus Arindri
+            destinations:
+                -   keyword: Butcherblock
+                    targetZone: butcher
+                -   keyword: Everfrost
+                    targetZone: everfrost
+                -   keyword: South Ro
+                    targetZone: southro
+                -   keyword: Commonlands
+                    targetZone: commonlands
+            expansion: Lost Dungeons of Norrath
+            requiredAchievement: 500980300
+        -   type: Translocator
+            name: Belinda
+            keyword: get on
+            targetZone: eastwastestwo
+            expansion: Torment of Velious
     oceangreenvillage:
         -   type: ZoneConnection
-            location: [-845.150024, 470.160003, 15.5500001]
+            location: [-845.15, 470.16, 15.55]
             targetZone: bertoxtemple
+    oceanoftears:
+        -   type: Translocator
+            name: '#Translocator Narrik'
+            destinations:
+                -   keyword: travel to Butcherblock
+                    targetZone: butcher
+                -   keyword: Freeport
+                    targetZone: freeporteast
     overthere:
         -   type: ZoneConnection
             location: [-6100, 1424, 364]
@@ -354,6 +567,7 @@ FindLocations:
             targetZone: potranquility
     pohealth:
         -   type: ZoneConnection
+            location: [1534, 20, 109]
             switch: 35
             targetZone: potranquility
     pojustice:
@@ -375,11 +589,13 @@ FindLocations:
                 if mq.TLO.Window('LargeDialogWindow').Open() then
                     mq.TLO.Window('LargeDialogWindow/LDW_YesButton').LeftMouseUp()
                 end
+            expansion: House of Thule
         -   type: ZoneConnection
             targetZone: feerrott
             name: 'The Feerrott'
             switch: POKOGPORT500
             script: |
+                -- FIXME: Before House of Thule opens
                 -- Wait for window to open and click the button on the right
                 mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
                 if mq.TLO.Window('LargeDialogWindow').Open() then
@@ -410,6 +626,7 @@ FindLocations:
             switch: OBJ_PORT_CRESCENT
             targetZone: moors
             replace: false
+            expansion: Serpent's Spine
         -   type: ZoneConnection
             switch: 3
             targetZone: nektulos
@@ -422,6 +639,7 @@ FindLocations:
             name: Herald of Druzzil Ro
             targetZone: potimea
             keyword: time
+            expansion: Seeds of Destruction
         -   type: ZoneConnection
             switch: 12
             targetZone: potranquility
@@ -430,6 +648,7 @@ FindLocations:
             switch: OBJ_PORT_GUKTA
             targetZone: rathemtn
             replace: false
+            expansion: Legacy of Ykesha
         -   type: ZoneConnection
             switch: 9
             targetZone: steamfontmts
@@ -444,11 +663,21 @@ FindLocations:
             targetZone: toxxulia
             identifier: 2
             replace: false
+        -   type: Translocator
+            name: Priest of Discord
+            keyword: wish to go to Discord
+            targetZone: draniksscar
+            expansion: Omens of War
+        -   type: ZoneConnection
+            switch: 25
+            targetZone: arena
+            replace: false
     potimea:
         -   type: Translocator
             name: Herald of Druzzil Ro
             targetZone: poknowledge
             keyword: send
+            expansion: Seeds of Destruction
     potranquility:
         -   type: ZoneConnection
             location: [264, -2214, -934]
@@ -472,8 +701,10 @@ FindLocations:
             location: [1718, -1447, -780]
             targetZone: podisease
         -   type: ZoneConnection
+            location: [-347.08, -1419.16, -933.27]
             switch: 13
             targetZone: pohealth
+            expansion: The Broken Mirror
         -   type: ZoneConnection
             switch: 15
             targetZone: postorms
@@ -486,6 +717,7 @@ FindLocations:
         -   type: ZoneConnection
             switch: 18
             targetZone: powar
+            expansion: Call of the Forsaken
         -   type: ZoneConnection
             switch: 83
             targetZone: powater
@@ -493,7 +725,7 @@ FindLocations:
             switch: 21
             targetZone: solrotower
         -   type: ZoneConnection
-            location: [-697.950012, 1785.66003, -925.900024]
+            location: [-697.95, 1785.66, -925.90]
             targetZone: bothunder
         -   type: ZoneConnection
             location: [ -1335, 2192, -714]
@@ -508,7 +740,7 @@ FindLocations:
             targetZone: potranquility
     provinggrounds:
         -   type: ZoneConnection
-            location: [-2454.6499, -839.010009, -309.769989]
+            location: [-2454.6499, -839.01, -309.77]
             targetZone: riftseekers
     qey2hh1:
         -   type: ZoneConnection
@@ -518,6 +750,11 @@ FindLocations:
         -   type: ZoneConnection
             location: [70, 70, -3]
             targetZone: qeytoqrg
+    qeynos:
+        -   type: Translocator
+            name: '#Translocator Sedina'
+            keyword: Erud's Crossing
+            targetZone: erudsxing
     qeytoqrg:
         -   type: ZoneConnection
             location: [1240, -2475, 0]
@@ -529,7 +766,7 @@ FindLocations:
             identifier: 1
     rathemtn:
         -   type: ZoneConnection
-            location: [3408.75, 3043.37988, -3.86999988]
+            location: [3408.75, 3043.38, -3.87]
             targetZone: lakerathe
     resplendent:
         -   type: ZoneConnection
@@ -537,12 +774,31 @@ FindLocations:
             targetZone: grelleth
     rivervale:
         -   type: ZoneConnection
-            location: [-86.1399993, 100, 4.05999994]
+            location: [-86.14, 100, 4.06]
             targetZone: mistythicket
     southkarana:
         -   type: ZoneConnection
-            location: [-8580, 1156, 5.46000003]
+            location: [-8580, 1156, 5.46]
             targetZone: lakerathe
+    southro:
+        -   type: Translocator
+            name: Magus Jerira
+            keyword: Nedaria's Landing
+            targetZone: nedaria
+            expansion: Lost Dungeons of Norrath
+        -   type: Translocator
+            name: Magus Jerira
+            destinations:
+                -   keyword: Butcherblock
+                    targetZone: butcher
+                -   keyword: Commonlands
+                    targetZone: commonlands
+                -   keyword: Everfrost
+                    targetZone: everfrost
+                -   keyword: North Ro
+                    targetZone: northro
+            expansion: Lost Dungeons of Norrath
+            requiredAchievement: 500980300
     scorchedwoods:
         -   type: ZoneConnection
             location: [-3129, -1235, -292]
@@ -551,6 +807,7 @@ FindLocations:
         -   type: ZoneConnection
             location: [-1085, -1080, -15]
             targetZone: argath
+            expansion: Veil of Alaris
     steppes:
         -   type: ZoneConnection
             location: [2186, -514, 374]
@@ -565,15 +822,15 @@ FindLocations:
             targetZone: firiona
             identifier: 1
         -   type: ZoneConnection
-            location: [-4463, -2656.69995, -0.449999988]
+            location: [-4463, -2656.67, -0.45]
             targetZone: firiona
             identifier: 2
         -   type: ZoneConnection
-            location: [-4500, 2566.01, 3.16000008]
+            location: [-4500, 2566.01, 3.16]
             targetZone: firiona
             identifier: 4
         -   type: ZoneConnection
-            location: [-4500, 2731.01, 2.1400001]
+            location: [-4500, 2731.01, 2.14]
             targetZone: firiona
             identifier: 5
         -   type: ZoneConnection
@@ -588,6 +845,20 @@ FindLocations:
             location: [2189, -4552, 22]
             targetZone: trakanon
             identifier: 2
+    timorous:
+        -   type: Translocator
+            name: '#Translocator Deela'
+            destinations:
+                -   keyword: Firiona Vie
+                    targetZone: firiona
+                -   keyword: travel to Butcherblock
+                    targetZone: butcher
+    toxxulia:
+        -   type: Translocator
+            name: Nexus Scion
+            keyword: journey to Luclin
+            targetZone: nexus
+            expansion: Luclin
     trakanon:
         -   type: ZoneConnection
             location: [1500, 4448, -275]
@@ -606,7 +877,7 @@ FindLocations:
             targetZone: endlesscaverns
     wallofslaughter:
         -   type: ZoneConnection
-            location: [1979.28002, -1702.54003, 111.669998]
+            location: [1979.28, -1702.54, 111.67]
             targetZone: provinggrounds
     warslikswood:
         -   type: ZoneConnection

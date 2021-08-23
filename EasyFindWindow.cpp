@@ -8,9 +8,11 @@
 // Limit the rate at which we update the distance to findable locations
 constexpr std::chrono::milliseconds s_distanceCalcDelay = std::chrono::milliseconds{ 100 };
 
-// /easyfind
 bool g_performCommandFind = false;
 bool g_performGroupCommandFind = false;
+
+FindableLocations s_findableLocations;
+bool s_findableLocationsDirty = false;
 
 //============================================================================
 
@@ -35,6 +37,12 @@ int CFindLocationWndOverride::OnProcessFrame()
 				RemoveCustomLocations();
 			}
 		}
+	}
+
+	if (s_findableLocationsDirty)
+	{
+		RemoveCustomLocations();
+		s_findableLocationsDirty = false;
 	}
 
 	// if didRebuild is true, then this will reset the refs list.
@@ -98,7 +106,7 @@ int CFindLocationWndOverride::OnZone()
 
 	int result = Super::OnZone();
 
-	g_zoneConnections->LoadZoneConnections();
+	LoadZoneConnections();
 
 	return result;
 }
@@ -190,10 +198,17 @@ void CFindLocationWndOverride::AddCustomLocations(bool initial)
 	if (!pLocalPC)
 		return;
 
-	for (FindableLocation& location : g_findableLocations)
+	for (FindableLocation& location : s_findableLocations)
 	{
 		if (!location.initialized)
 		{
+			// check requirements
+			if (location.parsedData)
+			{
+				if (!location.parsedData->CheckRequirements())
+					continue;
+			}
+
 			// Assemble the eq object
 			if (location.type == FindLocation_Switch || location.type == FindLocation_Location)
 			{
@@ -262,7 +277,8 @@ void CFindLocationWndOverride::AddCustomLocations(bool initial)
 
 				location.eqZoneConnectionData.zoneId = location.zoneId;
 				location.eqZoneConnectionData.zoneIdentifier = location.zoneIdentifier;
-				location.eqZoneConnectionData.location = CVector3(location.location.x, location.location.y, location.location.z);
+				if (location.location.has_value())
+					location.eqZoneConnectionData.location = CVector3(location.location->x, location.location->y, location.location->z);
 
 				if (location.name.empty())
 				{
@@ -590,17 +606,22 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 		// and we need to look it up.
 		if (PlayerClient* pSpawn = GetSpawnByID(ref->index))
 		{
+			std::string name;
 			if (pSpawn->Lastname[0] && pSpawn->Type == SPAWN_NPC)
-				SPDLOG_INFO("Navigating to \aySpawn\ax: \ag{} ({})", pSpawn->DisplayedName, pSpawn->Lastname);
-			else if (pSpawn->Type == SPAWN_PLAYER)
-				SPDLOG_INFO("Navigating to \ayPlayer:\ax \ag{}", pSpawn->DisplayedName);
+				name = fmt::format("{} ({})", pSpawn->DisplayedName, pSpawn->Lastname);
 			else
-				SPDLOG_INFO("Navigating to \aySpawn:\ax \ag{}", pSpawn->DisplayedName);
+				name = pSpawn->DisplayedName;
+
+			if (pSpawn->Type == SPAWN_PLAYER)
+				SPDLOG_INFO("Navigating to \ayPlayer:\ax \ag{}", name);
+			else
+				SPDLOG_INFO("Navigating to \aySpawn:\ax \ag{}", name);
 
 			FindLocationRequestState request;
 			request.spawnID = ref->index;
 			request.asGroup = asGroup;
 			request.type = ref->type;
+			request.name = std::move(name);
 			if (customLocation)
 				request.findableLocation = std::make_shared<FindableLocation>(*customLocation);
 
@@ -626,11 +647,14 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 			switchId = zoneConn.id;
 		}
 
-		char szLocationName[256];
-		if (zoneConn.zoneIdentifier > 0)
-			sprintf_s(szLocationName, "%s - %d", GetFullZone(zoneConn.zoneId), zoneConn.zoneIdentifier);
+		std::string locationName;
+		EQZoneInfo* pZoneInfo = pWorldData->GetZone(zoneConn.zoneId);
+		if (pZoneInfo)
+			locationName = pZoneInfo->LongName;
 		else
-			strcpy_s(szLocationName, GetFullZone(zoneConn.zoneId));
+			locationName = fmt::format("Unknown({})", (int)zoneConn.zoneId);
+		if (zoneConn.zoneIdentifier > 0)
+			locationName.append(fmt::format(" - {}", zoneConn.zoneIdentifier));
 
 		EQSwitch* pSwitch = nullptr;
 		if (ref->type == FindLocation_Switch)
@@ -648,12 +672,14 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 
 		if (pSwitch)
 		{
-			SPDLOG_INFO("Navigating to \ayZone Connection\ax: \ag{}\ax (via switch \ao{}\ax)", szLocationName, pSwitch->Name);
+			SPDLOG_INFO("Navigating to \ayZone Connection\ax: \ag{}\ax (via switch \ao{}\ax)", locationName, pSwitch->Name);
 		}
 		else
 		{
-			SPDLOG_INFO("Navigating to \ayZone Connection\ax: \ag{}\ax", szLocationName);
+			SPDLOG_INFO("Navigating to \ayZone Connection\ax: \ag{}\ax", locationName);
 		}
+
+		request.name = std::move(locationName);
 
 		Navigation_ExecuteCommand(std::move(request));
 		return true;
@@ -872,7 +898,7 @@ void CFindLocationWndOverride::OnHooked()
 
 	UpdateDistanceColumn();
 	SetWindowText("Find Window (Ctrl+Click to Navigate)");
-	g_zoneConnections->LoadZoneConnections();
+	LoadZoneConnections();
 }
 
 void CFindLocationWndOverride::OnAboutToUnhook()
@@ -902,6 +928,25 @@ void CFindLocationWndOverride::OnAboutToUnhook()
 	sm_distanceColumn = -1;
 }
 
+void CFindLocationWndOverride::LoadZoneConnections()
+{
+	if (!pZoneInfo)
+		return;
+
+	EQZoneInfo* zoneInfo = pWorldData->GetZone(pZoneInfo->ZoneID);
+	if (!zoneInfo)
+		return;
+
+	FindableLocations newLocations;
+
+	g_zoneConnections->CreateFindableLocations(newLocations, zoneInfo->ShortName);
+
+	s_findableLocations = std::move(newLocations);
+	s_findableLocationsDirty = true;
+}
+
+//----------------------------------------------------------------------------
+
 void FindWindow_Initialize()
 {
 	if (pFindLocationWnd)
@@ -928,5 +973,13 @@ void FindWindow_FindLocation(std::string_view searchTerm, bool asGroup)
 	if (pFindLocationWnd)
 	{
 		pFindLocationWnd.get_as<CFindLocationWndOverride>()->FindLocation(searchTerm, asGroup);
+	}
+}
+
+void FindWindow_LoadZoneConnections()
+{
+	if (pFindLocationWnd)
+	{
+		pFindLocationWnd.get_as<CFindLocationWndOverride>()->LoadZoneConnections();
 	}
 }

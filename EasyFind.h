@@ -16,35 +16,14 @@ enum class LocationType {
 };
 const char* LocationTypeToString(LocationType type);
 
-// Information parsed from YAML
-struct ParsedTranslocatorDestination
-{
-	std::string keyword;
-	EQZoneIndex zoneId = 0;           // numeric zone id
-	int zoneIdentifier = 0;
-};
-
-struct ParsedFindableLocation
-{
-	std::string typeString;
-	LocationType type;                // interpreted type
-	glm::vec3 location;
-	std::string name;
-	EQZoneIndex zoneId = 0;           // numeric zone id
-	int zoneIdentifier = 0;
-	int switchId = -1;                // switch num, or -1 if not set
-	std::string switchName;           // switch name, or "none"
-	std::string luaScript;
-	bool replace = true;
-	std::vector<ParsedTranslocatorDestination> translocatorDestinations;
-};
+struct ParsedFindableLocation;
 
 // loaded configuration information
 struct FindableLocation
 {
 	FindLocationType type;
 	LocationType easyfindType = LocationType::Unknown;
-	glm::vec3 location;
+	std::optional<glm::vec3> location;
 	std::string spawnName;                    // target spawn name (instead of location)
 	CXStr name;
 	EQZoneIndex zoneId = 0;                   // for zone connections
@@ -54,6 +33,7 @@ struct FindableLocation
 	std::string translocatorKeyword;
 	std::string luaScript;                    // lua script for zone connections
 	bool replace = true;                      // if false, we won't replace. only add if it doesn't already exist.
+	const ParsedFindableLocation* parsedData = nullptr;
 
 	// The EQ version of this location, if it exists, and data for the ui
 	CFindLocationWnd::FindZoneConnectionData eqZoneConnectionData;
@@ -68,6 +48,8 @@ struct FindLocationRequestState
 {
 	// The request
 	bool valid = false;
+	bool pending = false;
+
 	int spawnID = 0;
 	int switchID = -1;
 	glm::vec3 location;
@@ -75,13 +57,11 @@ struct FindLocationRequestState
 	FindLocationType type;
 	std::shared_ptr<FindableLocation> findableLocation;
 
+	std::string name;
+
 	// state while processing
 	bool activateSwitch = false;
 };
-
-//----------------------------------------------------------------------------
-
-extern FindableLocations g_findableLocations;
 
 //----------------------------------------------------------------------------
 
@@ -92,6 +72,7 @@ void ExecuteLuaScript(std::string_view luaScript, const std::shared_ptr<Findable
 void FindWindow_Initialize();
 void FindWindow_Shutdown();
 void FindWindow_Reset();
+void FindWindow_LoadZoneConnections();
 void FindWindow_FindLocation(std::string_view searchTerm, bool asGroup);
 
 // ImGui Handlers
@@ -112,11 +93,25 @@ void Navigation_Zoned();
 void Navigation_Reset();
 bool Navigation_IsInitialized();
 bool Navigation_ExecuteCommand(FindLocationRequestState&& request);
+void Navigation_Stop();
 
 // ZonePath Handlers
-std::vector<ZonePathData> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneIndex toZone, std::string& outputMessage);
-void ZonePath_SetActive(const std::vector<ZonePathData>& zonePathData, bool travel);
+struct ZonePathNode {
+	EQZoneIndex zoneId;
+	int transferTypeIndex;
+	const ParsedFindableLocation* location = nullptr;
+	const ZoneGuideConnection* connection = nullptr;
+
+	ZonePathNode(EQZoneIndex zoneId, int transferIndex, const ParsedFindableLocation* location, const ZoneGuideConnection* connection)
+		: zoneId(zoneId), transferTypeIndex(transferIndex), location(location), connection(connection) {}
+	ZonePathNode(const ZonePathData& data)
+		: zoneId(data.zoneId), transferTypeIndex(data.transferTypeIndex) {}
+};
+
+std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneIndex toZone, std::string& outputMessage);
+void ZonePath_SetActive(const std::vector<ZonePathNode>& zonePathData, bool travel);
 void ZonePath_OnPulse();
-void ZonePath_NavCanceled();
+void ZonePath_NavCanceled(bool message);
 void ZonePath_FollowActive();
 void ZonePath_Stop();
+void ZonePath_DumpConnections();

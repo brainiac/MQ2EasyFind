@@ -7,6 +7,8 @@
 #include "imgui/ImGuiUtils.h"
 #include "imgui/ImGuiTextEditor.h"
 
+#include <imgui_internal.h>
+
 static imgui::TextEditor* s_luaCodeViewer = nullptr;
 static bool s_focusWindow = false;
 static bool s_showWindow = false;
@@ -74,7 +76,7 @@ static void DrawFindZoneConnectionData(const CFindLocationWnd::FindZoneConnectio
 	}
 }
 
-static void DrawEasyFindZoneConnections()
+static void DrawEasyFindWindowConnections()
 {
 	// refs can change, so we need two ways to determine if we're still on the selected item.
 	static int selectedRef = -1;
@@ -83,6 +85,17 @@ static void DrawEasyFindZoneConnections()
 
 	bool foundSelectedRef = false;
 	CFindLocationWndOverride* findLocWnd = pFindLocationWnd.get_as<CFindLocationWndOverride>();
+
+	static bool showSpawns = true;
+	static bool showZoneLines = true;
+	static bool showZoneSwitches = true;
+	static bool showTranslocators = true;
+
+	ImGui::Checkbox("Show Spawns", &showSpawns); ImGui::SameLine();
+	ImGui::Checkbox("Show Zone Lines", &showZoneLines); ImGui::SameLine();
+	ImGui::Checkbox("Show Switches", &showZoneSwitches); ImGui::SameLine();
+	ImGui::Checkbox("Show Translocators", &showTranslocators);
+	ImGui::Separator();
 
 	ImGui::BeginGroup();
 	{
@@ -102,6 +115,50 @@ static void DrawEasyFindZoneConnections()
 					int refId = (int)findLocWnd->findLocationList->GetItemData(i);
 					CFindLocationWnd::FindableReference* ref = findLocWnd->referenceList.FindFirst(refId);
 					if (!ref) continue;
+
+					CFindLocationWndOverride::RefData* customRefData = findLocWnd->GetCustomRefData(refId);
+					const FindableLocation* findableLocation = customRefData ? customRefData->data : nullptr;
+
+					if (findableLocation)
+					{
+						switch (findableLocation->easyfindType)
+						{
+						case LocationType::Location:
+							if (!showZoneLines)
+								continue;
+							break;
+						case LocationType::Switch:
+							if (!showZoneSwitches)
+								continue;
+							break;
+						case LocationType::Translocator:
+							if (!showTranslocators)
+								continue;
+							break;
+
+						default: break;
+						}
+					}
+					else
+					{
+						switch (ref->type)
+						{
+						case FindLocation_Player:
+							if (!showSpawns)
+								continue;
+							break;
+						case FindLocation_Switch:
+							if (!showZoneSwitches)
+								continue;
+							break;
+						case FindLocation_Location:
+							if (!showZoneLines)
+								continue;
+							break;
+
+						default: break;
+						}
+					}
 
 					static char label[256];
 
@@ -356,8 +413,11 @@ static void DrawEasyFindZoneConnections()
 						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", data->spawnName.c_str());
 					}
 
-					ImGui::Text("Location:"); ImGui::SameLine(0.0f, 4.0f);
-					ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "(%.2f, %.2f, %.2f)", data->location.x, data->location.y, data->location.z);
+					if (data->location.has_value())
+					{
+						ImGui::Text("Location:"); ImGui::SameLine(0.0f, 4.0f);
+						ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "(%.2f, %.2f, %.2f)", data->location->x, data->location->y, data->location->z);
+					}
 
 					if (data->switchId != -1)
 					{
@@ -379,11 +439,37 @@ static void DrawEasyFindZoneConnections()
 
 					if (!data->translocatorKeyword.empty())
 					{
-						ImGui::Text("Translocator Keyword:"); ImGui::SameLine(0.0f, 4.0f); 
+						ImGui::Text("Translocator Keyword:"); ImGui::SameLine(0.0f, 4.0f);
 						ImGui::PushFont(imgui::ConsoleFont);
 						ImGui::TextColored(MQColor(255, 255, 64).ToImColor(), "%s", data->translocatorKeyword.c_str());
 						ImGui::PopFont();
 					}
+
+					if (data->parsedData)
+					{
+						if (data->parsedData->requiredExpansions)
+						{
+							ImGui::Text("Required Expansion:"); ImGui::SameLine(0.0f, 4.0f);
+							ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s", GetHighestExpansionOwnedName(data->parsedData->requiredExpansions));
+						}
+
+						const Achievement* achievement = nullptr;
+						if (data->parsedData->requiredAchievement)
+						{
+							achievement = GetAchievementById(data->parsedData->requiredAchievement);
+						}
+						else if (!data->parsedData->requiredAchievementName.empty())
+						{
+							achievement = GetAchievementByName(data->parsedData->requiredAchievementName);
+						}
+
+						if (achievement)
+						{
+							ImGui::Text("Required Achievement:"); ImGui::SameLine(0.0f, 4.0f);
+							ImGui::TextColored(MQColor(0, 255, 0).ToImColor(), "%s %d", achievement->name.c_str(), achievement->id);
+						}
+					}
+
 
 					ImGui::Text("Replace Original:"); ImGui::SameLine(0.0f, 4.0f);
 					ImGui::TextColored((data->replace ? MQColor(0, 255, 0) : MQColor(255, 0, 0)).ToImColor(), "%s", data->replace ? "Yes" : "No");
@@ -448,7 +534,7 @@ static void DrawEasyFindZonePathGeneration()
 	EQZoneInfo* pToZone = pWorldData->GetZone(GetZoneID(toZone));
 	ImGui::Text("To Zone:"); ImGui::SameLine(0.0f, 4.0f); ZoneLabel(pToZone ? pToZone->Id : -1);
 
-	static std::vector<ZonePathData> s_zonePathTest;
+	static std::vector<ZonePathNode> s_zonePathTest;
 	static std::string message;
 
 	if (ImGui::Button("Generate"))
@@ -481,7 +567,7 @@ static void DrawEasyFindZonePathGeneration()
 			ImGui::TableSetupScrollFreeze(0, 1);
 			ImGui::TableHeadersRow();
 
-			for (const ZonePathData& data : s_zonePathTest)
+			for (const ZonePathNode& data : s_zonePathTest)
 			{
 				ImGui::TableNextRow();
 
@@ -518,7 +604,76 @@ void DrawEasyFindSettingsPanel()
 	ImGui::SameLine();
 	ImGui::Text("Enable Debug Logging");
 
+	spdlog::level::level_enum currentValue = g_configuration->GetNavLogLevel();
 
+	if (ImGui::BeginCombo("Navigation Log Level", spdlog::level::to_string_view(currentValue).data(), ImGuiComboFlags_HeightSmall))
+	{
+		for (size_t n = 0; n < lengthof(spdlog::level::level_string_views); ++n)
+		{
+			const bool is_selected = n == (int)currentValue;
+			if (ImGui::Selectable(spdlog::level::level_string_views[n].data(), is_selected))
+			{
+				g_configuration->SetNavLogLevel((spdlog::level::level_enum)n);
+			}
+
+			if (is_selected)
+				ImGui::SetItemDefaultFocus();
+		}
+		ImGui::EndCombo();
+	}
+
+	ImGui::Separator();
+	const ZoneGuideManagerClient& mgr = ZoneGuideManagerClient::Instance();
+
+	if (mgr.zoneGuideDataSet)
+	{
+		if (ImGui::CollapsingHeader("Enabled Transfer Types"))
+		{
+			ImGui::Indent();
+			ImGui::TextWrapped("Disabled transfer types will not be included in calculations for zone paths.");
+
+			for (int i = 0; i < mgr.transferTypes.GetCount(); ++i)
+			{
+				CXStr str = mgr.GetZoneTransferTypeNameByIndex(i);
+
+				bool isSupported = g_configuration->IsSupportedTransferType(i);
+
+				if (!isSupported)
+				{
+					ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+					ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+
+					bool checked = false;
+					ImGui::Checkbox(str.c_str(), &checked);
+					ImGui::SameLine();
+
+					ImGui::PopItemFlag();
+					ImGui::PopStyleColor();
+
+					ImGui::TextDisabled("(?)");
+					if (ImGui::IsItemHovered())
+					{
+						ImGui::BeginTooltip();
+						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+						ImGui::TextUnformatted("This item is disabled because it is not supported by easyfind");
+						ImGui::PopTextWrapPos();
+						ImGui::EndTooltip();
+					}
+				}
+				else
+				{
+					bool isEnabled = !g_configuration->IsDisabledTransferType(i);
+
+					if (ImGui::Checkbox(str.c_str(), &isEnabled))
+					{
+						g_configuration->SetDisabledTransferType(i, !isEnabled);
+					}
+				}
+			}
+
+			ImGui::Unindent();
+		}
+	}
 }
 
 static void DrawEasyFindSettingsPanel_MQSettings()
@@ -565,7 +720,7 @@ void ImGui_OnUpdate()
 			{
 				if (ImGui::MenuItem("Reload Zone Connections"))
 				{
-					g_zoneConnections->ReloadZoneConnections();
+					g_zoneConnections->ReloadFindableLocations();
 				}
 
 				ImGui::EndMenu();
@@ -576,9 +731,9 @@ void ImGui_OnUpdate()
 
 		if (ImGui::BeginTabBar("EasyFindTabBar", ImGuiTabBarFlags_None))
 		{
-			if (ImGui::BeginTabItem("Zone Connections"))
+			if (ImGui::BeginTabItem("Find Window"))
 			{
-				DrawEasyFindZoneConnections();
+				DrawEasyFindWindowConnections();
 				ImGui::EndTabItem();
 			}
 

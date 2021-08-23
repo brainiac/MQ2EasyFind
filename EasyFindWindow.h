@@ -54,6 +54,8 @@ public:
 	RefData* GetCustomRefData(int refId);
 	const FindZoneConnectionData* GetOriginalZoneConnectionData(int index);
 
+	void LoadZoneConnections();
+
 public:
 	void FindLocationByRefNum(int refNum, bool group);
 
@@ -101,8 +103,6 @@ public:
 
 private:
 	bool FindLocationByListIndex(int listIndex, bool group);
-
-
 
 	// our "member variables" are static because we can't actually add new member variables,
 	// but we only ever have one instance of CFindLocationWnd, so this works out to be about the same.

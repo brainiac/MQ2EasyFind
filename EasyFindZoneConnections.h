@@ -10,6 +10,49 @@
 
 #include <string>
 
+// Information parsed from YAML
+struct ParsedTranslocatorDestination
+{
+	std::string keyword;
+	EQZoneIndex zoneId = 0;           // numeric zone id
+	int zoneIdentifier = 0;
+};
+
+struct ParsedFindableLocation
+{
+	std::string typeString;
+	LocationType type;                // interpreted type
+	std::optional<glm::vec3> location;
+	std::string name;
+	EQZoneIndex zoneId = 0;           // numeric zone id
+	int zoneIdentifier = 0;
+	int switchId = -1;                // switch num, or -1 if not set
+	std::string switchName;           // switch name, or "none"
+	std::string luaScript;
+	std::string luaScriptFile;
+	bool replace = true;
+	std::vector<ParsedTranslocatorDestination> translocatorDestinations;
+
+	EQExpansionOwned requiredExpansions = (EQExpansionOwned)0;
+	int requiredAchievement = 0;
+	std::string requiredAchievementName;
+
+	bool IsZoneConnection() const;
+
+	bool CheckRequirements() const; // returns true if requirements are met.
+};
+using ParsedFindableLocationsMap = std::map<std::string, std::vector<ParsedFindableLocation>, ci_less>;
+
+//----------------------------------------------------------------------------
+
+struct EZZoneData
+{
+	// our custom list of findable locations
+	std::vector<ParsedFindableLocation> findableLocations;
+};
+
+using FindableLocationsMap = std::map<std::string, EZZoneData, ci_less>;
+
 class ZoneConnections
 {
 public:
@@ -19,17 +62,26 @@ public:
 	const std::string& GetConfigDir() const { return m_configDirectory; }
 
 	void Load();
-	void LoadZoneConnections();
+	void LoadFindableLocations();
 
-	void ReloadZoneConnections();
+	void ReloadFindableLocations();
 
-	void GenerateFindableLocations(FindableLocations& findableLocations, std::vector<ParsedFindableLocation>&& parsedLocations);
+	void CreateFindableLocations(FindableLocations& findableLocations, std::string_view shortName);
 
 	bool MigrateIniData();
+
+	const std::vector<ParsedFindableLocation>& GetFindableLocations(EQZoneIndex zoneId) const;
+
+	void Pulse();
 
 private:
 	std::string m_configDirectory;
 	YAML::Node m_zoneConnectionsConfig;
+
+	bool m_zoneDataLoaded = false;
+
+	// Loaded findable locations
+	FindableLocationsMap m_findableLocations;
 };
 
 extern ZoneConnections* g_zoneConnections;
