@@ -78,6 +78,7 @@ private:
 	std::string m_configDirectory;
 	YAML::Node m_zoneConnectionsConfig;
 
+	bool m_transferTypesLoaded = false;
 	bool m_zoneDataLoaded = false;
 
 	// Loaded findable locations

@@ -268,6 +268,10 @@ void ZoneConnections::ReloadFindableLocations()
 
 void ZoneConnections::LoadFindableLocations()
 {
+	if (!pWorldData)
+		return;
+	m_zoneDataLoaded = true;
+
 	FindWindow_Reset();
 
 	FindableLocationsMap locationMap;
@@ -510,17 +514,25 @@ bool ZoneConnections::MigrateIniData()
 
 void ZoneConnections::Pulse()
 {
+	if (!m_zoneDataLoaded)
+	{
+		if (pWorldData)
+		{
+			m_zoneDataLoaded = true;
+			LoadFindableLocations();
+		}
+	}
 	if (GetGameState() != GAMESTATE_INGAME)
 	{
-		m_zoneDataLoaded = false;
+		m_transferTypesLoaded = false;
 		return;
 	}
 
-	if (!m_zoneDataLoaded
+	if (!m_transferTypesLoaded
 		&& ZoneGuideManagerClient::Instance().zoneGuideDataSet)
 	{
 		g_configuration->RefreshTransferTypes();
 
-		m_zoneDataLoaded = true;
+		m_transferTypesLoaded = true;
 	}
 }

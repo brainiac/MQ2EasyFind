@@ -930,7 +930,7 @@ void CFindLocationWndOverride::OnAboutToUnhook()
 
 void CFindLocationWndOverride::LoadZoneConnections()
 {
-	if (!pZoneInfo)
+	if (!pZoneInfo || !pWorldData)
 		return;
 
 	EQZoneInfo* zoneInfo = pWorldData->GetZone(pZoneInfo->ZoneID);
@@ -949,6 +949,8 @@ void CFindLocationWndOverride::LoadZoneConnections()
 
 void FindWindow_Initialize()
 {
+	s_findableLocations = {};
+
 	if (pFindLocationWnd)
 	{
 		CFindLocationWndOverride::InstallHooks(pFindLocationWnd);
