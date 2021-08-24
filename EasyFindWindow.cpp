@@ -667,6 +667,8 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 		request.switchID = switchId;
 		request.asGroup = asGroup;
 		request.type = ref->type;
+		request.zoneId = zoneConn.zoneId;
+
 		if (customLocation)
 			request.findableLocation = std::make_shared<FindableLocation>(*customLocation);
 

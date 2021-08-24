@@ -55,6 +55,7 @@ struct FindLocationRequestState
 	glm::vec3 location;
 	bool asGroup = false;
 	FindLocationType type;
+	EQZoneIndex zoneId = 0;
 	std::shared_ptr<FindableLocation> findableLocation;
 
 	std::string name;

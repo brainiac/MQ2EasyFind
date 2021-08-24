@@ -131,6 +131,19 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 	{
 		if (g_activeFindState.valid)
 		{
+			// Need to find a better way to do this.
+			if (gZoning)
+			{
+				// We canceled because we are zoning. Get the new zone and determine that we went to the
+				// right location.
+
+				int zoneId = pLocalPC ? pWorldData->GetZoneBaseId(pLocalPC->zoneId) : -1;
+				SPDLOG_DEBUG("NavCanceled because of zoning. New zoneId: {}, we are expecting: {}", zoneId, g_activeFindState.zoneId);
+
+				if (g_activeFindState.zoneId == zoneId)
+					return;
+			}
+
 			g_activeFindState.valid = false;
 
 			ZonePath_NavCanceled(true);

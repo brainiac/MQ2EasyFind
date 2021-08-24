@@ -275,6 +275,7 @@ void ZonePath_SetActive(const std::vector<ZonePathNode>& zonePathData, bool trav
 		pathArray.Add(ZonePathData(pathData.zoneId, pathData.transferTypeIndex));
 	}
 
+	bool hasItems = !pathArray.empty();
 	ZoneGuideManagerClient::Instance().activePath = std::move(pathArray);
 
 	s_travelToActive = travel;
@@ -286,7 +287,7 @@ void ZonePath_SetActive(const std::vector<ZonePathNode>& zonePathData, bool trav
 		if (pZonePathWnd)
 		{
 			pZonePathWnd->zonePathDirty = true;
-			pZonePathWnd->Show(!s_activeZonePath.empty());
+			pZonePathWnd->Show(hasItems);
 		}
 	}
 }
