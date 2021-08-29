@@ -156,9 +156,7 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 			g_activeFindState.valid = false;
 			g_activeFindState.pending = false;
 
-			SPDLOG_ERROR("Failed to find a path to the destination. This location may require some fixes: \ay{}",
-				g_activeFindState.name);
-
+			SPDLOG_ERROR("Failed to find a path to the destination: \ay{}", g_activeFindState.name);
 			ZonePath_NavCanceled(false);
 		}
 	}

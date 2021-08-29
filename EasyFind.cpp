@@ -231,6 +231,12 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
+	if (pLocalPC->zoneId == pTargetZone->Id)
+	{
+		SPDLOG_INFO("You are already in \ag{}\ax!", pTargetZone->LongName);
+		return;
+	}
+
 	std::string message;
 	auto path = ZonePath_GeneratePath(pCurrentZone->Id, pTargetZone->Id, message);
 	if (path.empty())
@@ -239,6 +245,8 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 			pCurrentZone->LongName, pTargetZone->LongName, message);
 		return;
 	}
+
+	SPDLOG_INFO("\aoTraveling to: \ag{}", pTargetZone->LongName);
 
 	ZonePath_SetActive(path, true);
 }
