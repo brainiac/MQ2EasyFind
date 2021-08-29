@@ -693,6 +693,10 @@ void DrawEasyFindSettingsPanel()
 	if (ImGui::Checkbox("Display Distance Column in Find Window", &distanceColumn))
 		g_configuration->SetDistanceColumnEnabled(distanceColumn);
 
+	bool silentGroupCommands = g_configuration->IsSilentGroupCommands();
+	if (ImGui::Checkbox("Silent Group Commands", &silentGroupCommands))
+		g_configuration->SetSilentGroupCommands(silentGroupCommands);
+
 	ImGui::NewLine();
 	ImGui::Text("Colors:");
 	for (int i = 0; i < (int)ConfiguredColor::MaxColors; ++i)
@@ -754,10 +758,12 @@ void DrawEasyFindSettingsPanel()
 	ImGui::Separator();
 	ImGui::PopFont();
 
+	ImGui::PushStyleColor(ImGuiCol_Text, MQColor(255, 255, 255, 128).ToImU32());
 	ImGui::TextWrapped("EasyFind is able to utilize zone connections from the Zone Guide window. However, not all "
 		"connections are meaningful to EasyFind. These options provide a way to blanket disable some types of connection "
-		"if they cause problems for EasyFind.\n\n"
-		"If a transfer type is disabled, then it will not be used when using /travelto");
+		"if they cause problems for EasyFind.");
+	ImGui::PopStyleColor();
+	ImGui::TextWrapped("If a transfer type is disabled, then it will not be used when using /travelto");
 
 	if (mgr.zoneGuideDataSet)
 	{

@@ -4,15 +4,14 @@
 #include "EasyFindZoneConnections.h"
 
 //----------------------------------------------------------------------------
-// 
+//
 // Limit the rate at which we update the distance to findable locations
-constexpr std::chrono::milliseconds s_distanceCalcDelay = std::chrono::milliseconds{ 100 };
+static constexpr std::chrono::milliseconds s_distanceCalcDelay = std::chrono::milliseconds{ 100 };
 
-bool g_performCommandFind = false;
-bool g_performGroupCommandFind = false;
-
-FindableLocations s_findableLocations;
-bool s_findableLocationsDirty = false;
+static bool s_performCommandFind = false;
+static bool s_performGroupCommandFind = false;
+static FindableLocations s_findableLocations;
+static bool s_findableLocationsDirty = false;
 
 //============================================================================
 
@@ -474,9 +473,9 @@ int CFindLocationWndOverride::WndNotification(CXWnd* sender, uint32_t message, v
 			int refId = (int)findLocationList->GetItemData(selectedRow);
 
 			// TODO: Configurable keybinds
-			if (pWndMgr->IsCtrlKey() || g_performCommandFind)
+			if (pWndMgr->IsCtrlKey() || s_performCommandFind)
 			{
-				bool groupNav = pWndMgr->IsShiftKey() || g_performGroupCommandFind;
+				bool groupNav = (pWndMgr->IsShiftKey() && !s_performCommandFind) || s_performGroupCommandFind;
 
 				// Try to perform the navigation. If we succeed, bail out. Otherwise trigger the
 				// navigation via player path.
@@ -654,6 +653,15 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 		// and we need to look it up.
 		if (PlayerClient* pSpawn = GetSpawnByID(ref->index))
 		{
+			if (asGroup)
+			{
+				// If we do this as a group, we execute via a command instead. This ensures that all
+				// members experience the same result (hopefully).
+				std::string command = fmt::format("/easyfind {}", pSpawn->DisplayedName);
+				DoGroupCommand(command, true);
+				return true;
+			}
+
 			std::string name;
 			if (pSpawn->Lastname[0] && pSpawn->Type == SPAWN_NPC)
 				name = fmt::format("{} ({})", pSpawn->DisplayedName, pSpawn->Lastname);
@@ -667,7 +675,6 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 
 			FindLocationRequestState request;
 			request.spawnID = ref->index;
-			request.asGroup = asGroup;
 			request.type = ref->type;
 			request.name = std::move(name);
 			if (customLocation)
@@ -710,10 +717,18 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 			pSwitch = pSwitchMgr->GetSwitchById(switchId);
 		}
 
+		if (asGroup)
+		{
+			// If we do this as a group, we execute via a command instead. This ensures that all
+			// members experience the same result (hopefully).
+			std::string command = fmt::format("/easyfind {}", locationName);
+			DoGroupCommand(command, true);
+			return true;
+		}
+
 		FindLocationRequestState request;
 		request.location = *(glm::vec3*)&zoneConn.location;
 		request.switchID = switchId;
-		request.asGroup = asGroup;
 		request.type = ref->type;
 		request.zoneId = zoneConn.zoneId;
 
@@ -784,14 +799,14 @@ const CFindLocationWnd::FindZoneConnectionData* CFindLocationWndOverride::GetOri
 bool CFindLocationWndOverride::FindLocationByListIndex(int listIndex, bool group)
 {
 	// Perform navigaiton by triggering a selection in the list.
-	g_performCommandFind = true;
-	g_performGroupCommandFind = group;
+	s_performCommandFind = true;
+	s_performGroupCommandFind = group;
 
 	findLocationList->SetCurSel(listIndex);
 	findLocationList->ParentWndNotification(findLocationList, XWM_LCLICK, (void*)listIndex);
 
-	g_performCommandFind = false;
-	g_performGroupCommandFind = false;
+	s_performCommandFind = false;
+	s_performGroupCommandFind = false;
 	return true;
 }
 

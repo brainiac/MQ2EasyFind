@@ -282,6 +282,7 @@ void EasyFindConfiguration::LoadSettings()
 
 		m_coloredFindWindowEnabled = m_configNode["ColoredFindWindow"].as<bool>(true);
 		m_distanceColumnEnabled = m_configNode["DistanceColumn"].as<bool>(true);
+		m_silentGroupCommands = m_configNode["SilentGroupCommands"].as<bool>(true);
 	}
 	catch (const YAML::ParserException& ex)
 	{
@@ -379,6 +380,14 @@ void EasyFindConfiguration::SetDistanceColumnEnabled(bool enable)
 {
 	m_distanceColumnEnabled = enable;
 	m_configNode["DistanceColumn"] = enable;
+
+	SaveSettings();
+}
+
+void EasyFindConfiguration::SetSilentGroupCommands(bool silent)
+{
+	m_silentGroupCommands = silent;
+	m_configNode["SilentGroupCommands"] = silent;
 
 	SaveSettings();
 }

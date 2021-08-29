@@ -53,7 +53,6 @@ struct FindLocationRequestState
 	int spawnID = 0;
 	int switchID = -1;
 	glm::vec3 location;
-	bool asGroup = false;
 	FindLocationType type;
 	EQZoneIndex zoneId = 0;
 	std::shared_ptr<FindableLocation> findableLocation;
@@ -69,7 +68,7 @@ struct FindLocationRequestState
 SPAWNINFO* FindSpawnByName(const char* spawnName, bool exact);
 void ExecuteLuaScript(std::string_view luaScript, const std::shared_ptr<FindableLocation>& findableLocation);
 
-void DoGroupCommand(const char* command);
+void DoGroupCommand(std::string_view command, bool includeSelf);
 
 // Find Window Handlers
 void FindWindow_Initialize();

@@ -67,6 +67,9 @@ public:
 	void SetDistanceColumnEnabled(bool enable);
 	bool IsDistanceColumnEnabled() const { return m_distanceColumnEnabled; }
 
+	void SetSilentGroupCommands(bool silent);
+	bool IsSilentGroupCommands() const { return m_silentGroupCommands; }
+
 	// transfer types
 	void RefreshTransferTypes();
 	bool IsSupportedTransferType(int transferTypeIndex) const;
@@ -108,6 +111,7 @@ private:
 
 	bool m_distanceColumnEnabled = true;
 	bool m_coloredFindWindowEnabled = true;
+	bool m_silentGroupCommands = true;
 };
 
 extern EasyFindConfiguration* g_configuration;

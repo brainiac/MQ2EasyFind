@@ -39,9 +39,41 @@ SPAWNINFO* FindSpawnByName(const char* spawnName, bool exact)
 	return pSpawn;
 }
 
-void DoGroupCommand(const char* command)
+void DoGroupCommand(std::string_view command, bool includeSelf)
 {
+	auto activeGroupPlugin = g_configuration->GetActiveGroupPlugin();
 
+	if (activeGroupPlugin == ConfiguredGroupPlugin::None)
+	{
+		SPDLOG_ERROR("Cannot execute group command, no group plugin configured: {}", command);
+		return;
+	}
+
+	std::string groupCommand;
+	if (g_configuration->IsSilentGroupCommands())
+		groupCommand = "/squelch ";
+
+	if (activeGroupPlugin == ConfiguredGroupPlugin::Dannet)
+	{
+		if (includeSelf)
+			groupCommand += fmt::format("/dgga {}", command);
+		else
+			groupCommand += fmt::format("/dgge {}", command);
+	}
+	else if (activeGroupPlugin == ConfiguredGroupPlugin::EQBC)
+	{
+		if (includeSelf)
+			groupCommand += fmt::format("/bcga /{}", command);
+		else
+			groupCommand += fmt::format("/bcg /{}", command);
+	}
+
+	if (!groupCommand.empty())
+	{
+		SPDLOG_DEBUG("Executing group command: {}", groupCommand);
+
+		HideDoCommand(pLocalPlayer, groupCommand.c_str(), true);
+	}
 }
 
 //============================================================================
@@ -170,14 +202,16 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
-	bool group = false;
-	if (ci_starts_with(szLine, "group"))
+	if (ci_starts_with(szLine, "group "))
 	{
 		szLine += strlen("group") + 1;
-		group = true;
+
+		std::string groupCommand = fmt::format("/easyfind {}", szLine);
+		DoGroupCommand(groupCommand, true);
+		return;
 	}
 
-	FindWindow_FindLocation(szLine, group);
+	FindWindow_FindLocation(szLine, false);
 }
 
 void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
@@ -215,10 +249,13 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
-	if (ci_starts_with(szLine, "group"))
+	if (ci_starts_with(szLine, "group "))
 	{
 		szLine += strlen("group") + 1;
 
+		std::string groupCommand = fmt::format("/travelto {}", szLine);
+		DoGroupCommand(groupCommand, true);
+		return;
 	}
 
 	if (!pLocalPC)
