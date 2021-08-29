@@ -321,6 +321,16 @@ FindLocations:
             location: [2.1, 251.09, -10.82]
             switch: GUILDHALL_DOOR_SWITCH
             targetZone: neighborhood
+    guildhalllrg:
+        -   type: ZoneConnection
+            location: [1, 82, 0]
+            switch: OBJ_FRONTENTRANCE
+            targetZone: neighborhood
+    guildhallsml:
+        -   type: ZoneConnection
+            location: [0, 262, -13]
+            switch: OBJ_GUIILDHALL_SML_DOOR
+            targetZone: neighborhood
     guildlobby:
         -   type: ZoneConnection
             switch: 1
