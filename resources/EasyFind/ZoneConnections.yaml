@@ -11,6 +11,11 @@ FindLocations:
         -   type: ZoneConnection
             switch: 2
             targetZone: resplendent
+    acrylia:
+        -   type: ZoneConnection
+            name: Castle
+            switch: 16
+            targetZone: acrylia
     atiiki:
         -   type: ZoneConnection
             switch: 14
@@ -131,6 +136,11 @@ FindLocations:
             name: Elder Priest of Discord
             keyword: go home
             targetZone: poknowledge
+    dreadlands:
+        -   type: Translocator
+            name: Nexus Scion
+            keyword: journey to Luclin
+            targetZone: nexus
     dreadspire:
         -   type: ZoneConnection
             location: [-1051, 1410.27, -571]
@@ -141,7 +151,7 @@ FindLocations:
             targetZone: deadhills
     eastkarana:
         -   type: ZoneConnection
-            location: [-3105, -8340, 690]
+            location: [-3104.22, -8338.80, 689.91]
             targetZone: highpasshold
         -   type: ZoneConnection
             location: [3635, -2019, 1.75]
@@ -156,7 +166,7 @@ FindLocations:
             targetZone: illsalin
     eastwastes:
         -   type: ZoneConnection
-            location: [-1780, 6720, 132]
+            location: [-1771.37, 6685, 198.47]
             targetZone: greatdivide
     eastwastestwo:
         -   type: Translocator
@@ -259,26 +269,38 @@ FindLocations:
     freeportwest:
         -   type: ZoneConnection
             location: [290, -1730, -112]
-            targetZone: freporte
+            targetZone: freeporteast
             identifier: 1
         -   type: ZoneConnection
             location: [-100, -1515, -137]
-            targetZone: freporte
+            targetZone: freeporteast
             identifier: 2
         -   type: ZoneConnection
             location: [38.49, 410.92, -17.39]
             targetZone: commonlands
+        -   type: ZoneConnection
+            switch: OBJ_POK_BOOK_
+            targetZone: poknowledge
     frontiermtns:
         -   type: ZoneConnection
             location: [-2335, 4280, -454.46]
             targetZone: burningwood
+    gfaydark:
+        -   type: Translocator
+            name: Nexus Scion
+            keyword: journey to Luclin
+            targetZone: nexus
     greatdivide:
         -   type: ZoneConnection
-            location: [-1775, -5208, 114]
+            location: [-1754.30, -5138.47, 194.99]
             targetZone: eastwastes
         -   type: ZoneConnection
             switch: 14
             targetZone: mischiefplane
+        -   type: Translocator
+            name: Nexus Scion
+            keyword: journey to Luclin
+            targetZone: nexus
     grimling:
         -   type: ZoneConnection
             location: [855, 1935, -267]
@@ -294,11 +316,27 @@ FindLocations:
         -   type: ZoneConnection
             switch: OBJ_GUILD_DOOR
             targetZone: guildlobby
+    guildhall3:
+        -   type: ZoneConnection
+            location: [2.1, 251.09, -10.82]
+            switch: GUILDHALL_DOOR_SWITCH
+            targetZone: neighborhood
     guildlobby:
         -   type: ZoneConnection
             switch: 1
             targetZone: guildhall3
             name: Neighborhood Guild Hall
+            identifier: 1
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: guildhallsml
+            name: Neighborhood Guild Hall
+            identifier: 2
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: guildhalllrg
+            name: Neighborhood Guild Hall
+            identifier: 3
         -   type: ZoneConnection
             switch: 3
             targetZone: guildhall
@@ -326,10 +364,32 @@ FindLocations:
                     targetZone: southro
             expansion: Lost Dungeons of Norrath
             requiredAchievement: 500980300
+        -   type: ZoneConnection
+            targetZone: neighborhood
+            name: Sunrise Hills
+            switch: OBJ_IRONGATESWITCH
+            script: |
+                -- Wait for window to open and click the button on the right
+                mq.delay('10s', function() return mq.TLO.Window('RealEstateNeighborhoodWnd').Open() end)
+                if mq.TLO.Window('RealEstateNeighborhoodWnd').Open() then
+                    mq.TLO.Window('RealEstateNeighborhoodWnd/RENW_NeighborhoodList').LeftMouseUp()
+                    mq.delay(3000)
+                    mq.TLO.Window('RealEstateNeighborhoodWnd/RENW_Go_Button').LeftMouseUp()
+                end
     gyrospireb:
         -   type: ZoneConnection
             switch: 2
             targetZone: mechanotus
+    hollowshade:
+        -   type: ZoneConnection
+            name: Shar Vahl
+            location: [1180, 3270, 111.97]
+            targetZone: sharvahl
+    iceclad:
+        -   type: Translocator
+            name: '#Translocator Kurione'
+            keyword: travel to North Ro
+            targetZone: northro
     innothuleb:
         -   type: ZoneConnection
             location: [-2350, -1190, 10]
@@ -337,6 +397,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [-12, -1185, 23]
             targetZone: guktop
+    kaeltwo:
+        -   type: ZoneConnection
+            location: [-2160, 1550, -432.33]
+            targetZone: cobaltscartwo
     kaladima:
         -   type: ZoneConnection
             location: [400.25, -260, 1.88]
@@ -370,6 +434,7 @@ FindLocations:
             targetZone: buriedsea
     kattacastrumb:
         -   type: ZoneConnection
+            location: [-105.19, 0.69, 25.45]
             switch: 122
             targetZone: tempesttemple
     lakeofillomen:
@@ -509,6 +574,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [20, -3200, -33.59]
             targetZone: eastkarana
+        -   type: Translocator
+            name: Nexus Scion
+            keyword: journey to Luclin
+            targetZone: nexus
     northro:
         -   type: ZoneConnection
             location: [5221, -2533, -3.61]
@@ -537,6 +606,10 @@ FindLocations:
             keyword: get on
             targetZone: eastwastestwo
             expansion: Torment of Velious
+        -   type: Translocator
+            name: '#Translocator Ionie'
+            keyword: travel to Iceclad
+            targetZone: iceclad
     oceangreenvillage:
         -   type: ZoneConnection
             location: [-845.15, 470.16, 15.55]
@@ -554,6 +627,10 @@ FindLocations:
             location: [-6100, 1424, 364]
             targetZone: frontiermtns
             identifier: 1
+        -   type: Translocator
+            name: '#Translocator Breya'
+            keyword: travel to Timorous Deep
+            targetZone: timorous
     overtheretwo:
         -   type: ZoneConnection
             switch: 6
@@ -744,7 +821,7 @@ FindLocations:
             targetZone: riftseekers
     qey2hh1:
         -   type: ZoneConnection
-            location: [-4233, -16483, -60]
+            location: [651, -16001, 0.12]
             targetZone: northkarana
             identifier: 1
         -   type: ZoneConnection
@@ -776,10 +853,23 @@ FindLocations:
         -   type: ZoneConnection
             location: [-86.14, 100, 4.06]
             targetZone: mistythicket
+    sharvahl:
+        -   type: ZoneConnection
+            location: [1680, -470, -212.24]
+            targetZone: hollowshade
+    skyshrinetwo:
+        -   type: ZoneConnection
+            name: Cobalt Scar
+            location: [105.09, 267.85, 3.12]
+            switch: 28
+            targetZone: cobaltscartwo
     southkarana:
         -   type: ZoneConnection
             location: [-8580, 1156, 5.46]
             targetZone: lakerathe
+        -   type: ZoneConnection
+            location: [2907.10, 899.79, -32.34]
+            targetZone: northkarana
     southro:
         -   type: Translocator
             name: Magus Jerira
@@ -799,6 +889,10 @@ FindLocations:
                     targetZone: northro
             expansion: Lost Dungeons of Norrath
             requiredAchievement: 500980300
+        -   type: Translocator
+            name: '#Translocator Tradil'
+            keyword: Travel to Timorous Deep
+            targetZone: timorous
     scorchedwoods:
         -   type: ZoneConnection
             location: [-3129, -1235, -292]
@@ -812,6 +906,9 @@ FindLocations:
         -   type: ZoneConnection
             location: [2186, -514, 374]
             targetZone: icefall
+        -   type: ZoneConnection
+            location: [-2400, -885, 2.40]
+            targetZone: mesa
     sunderock:
         -   type: ZoneConnection
             location: [-907, -1632, 215]
@@ -853,6 +950,13 @@ FindLocations:
                     targetZone: firiona
                 -   keyword: travel to Butcherblock
                     targetZone: butcher
+        -   type: Translocator
+            name: '#Translocator Jorbin'
+            destinations:
+                -   keyword: South Ro
+                    targetZone: southro
+                -   keyword: travel to Overthere
+                    targetZone: overthere
     toxxulia:
         -   type: Translocator
             name: Nexus Scion
@@ -871,6 +975,11 @@ FindLocations:
         -   type: ZoneConnection
             switch: 12
             targetZone: sebilis
+    tutorialb:
+        -   type: Translocator
+            name: Arias
+            keyword: wish to leave
+            targetZone: poknowledge
     tempesttemple:
         -   type: ZoneConnection
             switch: 3
