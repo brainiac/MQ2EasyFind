@@ -572,7 +572,9 @@ static void DrawEasyFindZonePathGeneration()
 				ImGui::TableNextRow();
 
 				ImGui::TableNextColumn();
-				ImGui::Text("%s", pWorldData->GetZone(data.zoneId)->LongName);
+				ZoneLabel(data.zoneId);
+				ImGui::SameLine();
+				ImGui::Text("(%d)", data.zoneId);
 
 				ImGui::TableNextColumn();
 				ImGui::Text("%s", ZoneGuideManagerClient::Instance().GetZoneTransferTypeNameByIndex(data.transferTypeIndex).c_str());

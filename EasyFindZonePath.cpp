@@ -42,23 +42,20 @@ std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneInde
 	EQZoneInfo* toZoneInfo = pWorldData->GetZone(toZone);
 	if (!toZoneInfo)
 	{
-		outputMessage = "Invalid target zone";
+		outputMessage = "Ending zone is not valid";
 		return {};
 	}
 
-	ZoneGuideZone* nextZone = nullptr;
-	ZoneGuideZone* currentZone = zoneMgr.GetZone(fromZone);
-
-	if (!currentZone)
+	EQZoneInfo* fromZoneInfo = pWorldData->GetZone(fromZone);
+	if (!fromZoneInfo)
 	{
-		outputMessage = "Starting zone has no valid zone connections";
+		outputMessage = "Starting zone is not valid";
 		return {};
 	}
-
 
 	// Implements a breadth-first search of the zone connections
-
-	std::deque<ZoneGuideZone*> queue;
+	EQZoneIndex currentZoneId = pWorldData->GetZoneBaseId(fromZone);
+	std::deque<EQZoneIndex> queue;
 	struct ZonePathGenerationData {
 		int depth = -1;
 		int pathMinLevel = -1;
@@ -71,43 +68,42 @@ std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneInde
 	};
 	std::unordered_map<EQZoneIndex, ZonePathGenerationData> pathData;
 
-	queue.push_back(currentZone);
+	queue.push_back(currentZoneId);
 	pathData[fromZone].depth = 0;
-	pathData[fromZone].pathMinLevel = currentZone->minLevel;
+	pathData[fromZone].pathMinLevel = 0;
+
+	if (const ZoneGuideZone* z = zoneMgr.GetZone(currentZoneId))
+		pathData[fromZone].pathMinLevel = z->minLevel;
 
 	// TODO: Handle bind zones (gate)
 	// TODO: Handle teleport spell zones (translocate, etc)
 
-	auto addTransfer = [&](EQZoneIndex destZoneId, int transferTypeIndex,
+	auto addTransfer = [&](EQZoneIndex destZoneId, int transferTypeIndex, int minLevel,
 		const ParsedFindableLocation* location, const ZoneGuideConnection* connection)
 	{
-		nextZone = zoneMgr.GetZone(destZoneId);
-		if (nextZone)
+		auto& data = pathData[destZoneId];
+		auto& prevData = pathData[currentZoneId];
+
+		data.location = location;
+		data.connection = connection;
+
+		if (data.depth == -1)
 		{
-			auto& data = pathData[destZoneId];
-			auto& prevData = pathData[currentZone->zoneId];
+			queue.push_back(destZoneId);
 
-			data.location = location;
-			data.connection = connection;
+			data.prevZoneTransferTypeIndex = transferTypeIndex;
+			data.prevZone = currentZoneId;
+			data.pathMinLevel = std::max(prevData.pathMinLevel, minLevel);
 
-			if (data.depth == -1)
-			{
-				queue.push_back(nextZone);
-
-				data.prevZoneTransferTypeIndex = transferTypeIndex;
-				data.prevZone = currentZone->zoneId;
-				data.pathMinLevel = std::max(prevData.pathMinLevel, nextZone->minLevel);
-
-				data.depth = prevData.depth + 1;
-			}
-			else if (data.prevZone && (data.depth == prevData.depth + 1)
-				&& pathData[data.prevZone].pathMinLevel > prevData.pathMinLevel)
-			{
-				// lower level preference?
-				data.prevZoneTransferTypeIndex = transferTypeIndex;
-				data.prevZone = currentZone->zoneId;
-				data.pathMinLevel = std::max(prevData.pathMinLevel, nextZone->minLevel);
-			}
+			data.depth = prevData.depth + 1;
+		}
+		else if (data.prevZone && (data.depth == prevData.depth + 1)
+			&& pathData[data.prevZone].pathMinLevel > prevData.pathMinLevel)
+		{
+			// lower level preference?
+			data.prevZoneTransferTypeIndex = transferTypeIndex;
+			data.prevZone = currentZoneId;
+			data.pathMinLevel = std::max(prevData.pathMinLevel, minLevel);
 		}
 	};
 
@@ -118,39 +114,42 @@ std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneInde
 	// Explore the zone graph and cost everything out.
 	while (!queue.empty())
 	{
-		currentZone = queue.front();
+		currentZoneId = queue.front();
 		queue.pop_front();
 
 		// Did we find a connection to the destination?
-		if (pathData[toZone].depth > -1 && pathData[toZone].depth < pathData[currentZone->zoneId].depth)
+		if (pathData[toZone].depth > -1 && pathData[toZone].depth < pathData[currentZoneId].depth)
 		{
 			break;
 		}
 
-		// Search the zone guide with modified parameters.
-		for (const ZoneGuideConnection& connection : currentZone->zoneConnections)
+		if (ZoneGuideZone* currentZone = zoneMgr.GetZone(currentZoneId))
 		{
-			// Skip connection if it is disabled by the user.
-			if (connection.disabled)
-				continue;
-
-			// Make sure that progression server expansion is available.
-			if (connection.requiredExpansions != 0 && pEverQuestInfo->bProgressionServer)
+			// Search the zone guide with modified parameters.
+			for (const ZoneGuideConnection& connection : currentZone->zoneConnections)
 			{
-				if ((pEverQuestInfo->ProgressionOpenExpansions & connection.requiredExpansions) != connection.requiredExpansions)
+				// Skip connection if it is disabled by the user.
+				if (connection.disabled)
 					continue;
-			}
 
-			// Make sure that the transfer types are supported
-			if (g_configuration->IsDisabledTransferType(connection.transferTypeIndex))
+				// Make sure that progression server expansion is available.
+				if (connection.requiredExpansions != 0 && pEverQuestInfo->bProgressionServer)
+				{
+					if ((pEverQuestInfo->ProgressionOpenExpansions & connection.requiredExpansions) != connection.requiredExpansions)
+						continue;
+				}
+
+				// Make sure that the transfer types are supported
+				if (g_configuration->IsDisabledTransferType(connection.transferTypeIndex))
+					continue;
+
+				addTransfer(connection.destZoneId, connection.transferTypeIndex, currentZone->minLevel, nullptr, &connection);
 				continue;
-
-			addTransfer(connection.destZoneId, connection.transferTypeIndex, nullptr, &connection);
-			continue;
+			}
 		}
 
 		// Search our own connections
-		const std::vector<ParsedFindableLocation>& myLocations = g_zoneConnections->GetFindableLocations(currentZone->zoneId);
+		const std::vector<ParsedFindableLocation>& myLocations = g_zoneConnections->GetFindableLocations(currentZoneId);
 		for (const ParsedFindableLocation& location : myLocations)
 		{
 			if (!location.IsZoneConnection())
@@ -167,11 +166,11 @@ std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneInde
 				transferTypeIndex = translocatorIndex;
 
 			if (location.zoneId != 0)
-				addTransfer(location.zoneId, transferTypeIndex, &location, nullptr);
+				addTransfer(location.zoneId, transferTypeIndex, 0, &location, nullptr);
 			for (const auto& dest : location.translocatorDestinations)
 			{
 				if (dest.zoneId != 0)
-					addTransfer(dest.zoneId, translocatorIndex, &location, nullptr);
+					addTransfer(dest.zoneId, translocatorIndex, 0, &location, nullptr);
 			}
 		}
 	}
@@ -192,6 +191,11 @@ std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneInde
 		zoneId = pathData[zoneId].prevZone;
 		location = pathData[zoneId].location;
 		connection = pathData[zoneId].connection;
+	}
+
+	if (reversedPath.size() <= 1)
+	{
+		outputMessage = "Could not find path to target zone.";
 	}
 
 	std::vector<ZonePathNode> newPath;
@@ -303,7 +307,7 @@ static void UpdateForZoneChange()
 	if (!pFindLocWnd->IsCustomLocationsAdded())
 		return;
 
-	s_currentZone = pLocalPlayer->GetZoneID();
+	s_currentZone = pWorldData->GetZoneBaseId(pLocalPlayer->GetZoneID());
 
 	// If zone path is active then update it.
 	if (!s_activeZonePath.empty())
@@ -349,7 +353,7 @@ static void UpdateForZoneChange()
 
 void ZonePath_OnPulse()
 {
-	if (s_currentZone != pLocalPlayer->GetZoneID())
+	if (s_currentZone != pLocalPC->zoneId)
 	{
 		UpdateForZoneChange();
 	}

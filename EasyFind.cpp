@@ -210,9 +210,19 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
-	EQZoneInfo* pCurrentZone = pWorldData->GetZone(pZoneInfo->ZoneID);
-	if (!pCurrentZone)
+	if (!pLocalPC)
+	{
+		SPDLOG_ERROR("You need to be in game to travel!");
 		return;
+	}
+
+
+	EQZoneInfo* pCurrentZone = pWorldData->GetZone(pLocalPC->currentZoneId);
+	if (!pCurrentZone)
+	{
+		SPDLOG_ERROR("Unable to determine the current zone!");
+		return;
+	}
 
 	EQZoneInfo* pTargetZone = pWorldData->GetZone(GetZoneID(szLine));
 	if (!pTargetZone)
@@ -225,7 +235,7 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 	auto path = ZonePath_GeneratePath(pCurrentZone->Id, pTargetZone->Id, message);
 	if (path.empty())
 	{
-		SPDLOG_ERROR("Failed to generate path from \ay{}\ar to \ay{}\ar: {}.",
+		SPDLOG_ERROR("Failed to generate path from \ay{}\ar to \ay{}\ar: {}",
 			pCurrentZone->LongName, pTargetZone->LongName, message);
 		return;
 	}

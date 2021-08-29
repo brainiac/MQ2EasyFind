@@ -283,14 +283,15 @@ void CFindLocationWndOverride::AddCustomLocations(bool initial)
 				if (location.name.empty())
 				{
 					CXStr name = GetFullZone(location.zoneId);
-					if (location.zoneIdentifier)
-						name.append(fmt::format(" - {}", location.zoneIdentifier));
 					location.listDescription = name;
 				}
 				else
 				{
 					location.listDescription = location.name;
 				}
+
+				if (location.zoneIdentifier)
+					location.listDescription.append(fmt::format(" - {}", location.zoneIdentifier));
 			}
 
 			location.initialized = true;
@@ -932,10 +933,10 @@ void CFindLocationWndOverride::OnAboutToUnhook()
 
 void CFindLocationWndOverride::LoadZoneConnections()
 {
-	if (!pZoneInfo || !pWorldData)
+	if (!pWorldData || !pLocalPC)
 		return;
 
-	EQZoneInfo* zoneInfo = pWorldData->GetZone(pZoneInfo->ZoneID);
+	EQZoneInfo* zoneInfo = pWorldData->GetZone(pLocalPC->currentZoneId);
 	if (!zoneInfo)
 		return;
 
