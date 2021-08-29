@@ -47,6 +47,34 @@ int CFindLocationWndOverride::OnProcessFrame()
 
 	// if didRebuild is true, then this will reset the refs list.
 	int result = Super::OnProcessFrame();
+	bool updateColors = false;
+
+	if (sm_displayDistanceColumn != g_configuration->IsDistanceColumnEnabled())
+	{
+		sm_displayDistanceColumn = g_configuration->IsDistanceColumnEnabled();
+
+		if (sm_displayDistanceColumn)
+		{
+			AddDistanceColumn();
+		}
+		else
+		{
+			RemoveDistanceColumn();
+
+			updateColors = true;
+		}
+	}
+
+	if (sm_displayColors != g_configuration->IsColoredFindWindowEnabled()
+		|| sm_addedColor != g_configuration->GetColor(ConfiguredColor::AddedLocation)
+		|| sm_modifiedColor != g_configuration->GetColor(ConfiguredColor::ModifiedLocation))
+	{
+		sm_displayColors = g_configuration->IsColoredFindWindowEnabled();
+		sm_addedColor = g_configuration->GetColor(ConfiguredColor::AddedLocation);
+		sm_modifiedColor = g_configuration->GetColor(ConfiguredColor::ModifiedLocation);
+
+		updateColors = true;
+	}
 
 	// Update distance column. this will internally skip work if necessary.
 	UpdateDistanceColumn();
@@ -77,6 +105,15 @@ int CFindLocationWndOverride::OnProcessFrame()
 		sm_queuedSearchTerm.clear();
 		sm_queuedGroupParam = false;
 		sm_queuedZoneId = 0;
+	}
+
+	if (updateColors)
+	{
+		// update the list
+		for (int i = 0; i < findLocationList->GetItemCount(); ++i)
+		{
+			UpdateListRowColor(i);
+		}
 	}
 
 	return result;
@@ -412,10 +449,17 @@ void CFindLocationWndOverride::UpdateListRowColor(int row)
 
 		for (SListWndCell& cell : line.Cells)
 		{
-			if (type == CustomRefType::Added)
-				cell.Color = (COLORREF)g_configuration->GetColor(ConfiguredColor::AddedLocation);
-			else if (type == CustomRefType::Modified)
-				cell.Color = (COLORREF)g_configuration->GetColor(ConfiguredColor::ModifiedLocation);
+			if (sm_displayColors)
+			{
+				if (type == CustomRefType::Added)
+					cell.Color = (COLORREF)sm_addedColor;
+				else if (type == CustomRefType::Modified)
+					cell.Color = (COLORREF)sm_modifiedColor;
+			}
+			else
+			{
+				cell.Color = (COLORREF)MQColor(255, 255, 255);
+			}
 		}
 	}
 }
@@ -484,6 +528,9 @@ int CFindLocationWndOverride::WndNotification(CXWnd* sender, uint32_t message, v
 
 void CFindLocationWndOverride::UpdateDistanceColumn()
 {
+	if (sm_distanceColumn == -1)
+		return;
+
 	auto now = std::chrono::steady_clock::now();
 	bool periodicUpdate = false;
 
@@ -868,11 +915,8 @@ bool CFindLocationWndOverride::FindLocation(std::string_view searchTerm, bool gr
 	return FindLocationByListIndex(foundIndex, group);
 }
 
-void CFindLocationWndOverride::OnHooked()
+void CFindLocationWndOverride::AddDistanceColumn()
 {
-	if (!findLocationList)
-		return;
-
 	CListWnd* locs = findLocationList;
 
 	if (locs->Columns.GetCount() == 2)
@@ -900,17 +944,10 @@ void CFindLocationWndOverride::OnHooked()
 	}
 
 	UpdateDistanceColumn();
-	SetWindowText("Find Window (Ctrl+Click to Navigate)");
-	LoadZoneConnections();
 }
 
-void CFindLocationWndOverride::OnAboutToUnhook()
+void CFindLocationWndOverride::RemoveDistanceColumn()
 {
-	if (!findLocationList)
-		return;
-
-	RemoveCustomLocations();
-
 	CListWnd* locs = findLocationList;
 	if (sm_distanceColumn != -1)
 	{
@@ -927,8 +964,33 @@ void CFindLocationWndOverride::OnAboutToUnhook()
 		}
 	}
 
-	SetWindowText("Find Window");
 	sm_distanceColumn = -1;
+}
+
+void CFindLocationWndOverride::OnHooked()
+{
+	sm_addedColor = g_configuration->GetColor(ConfiguredColor::AddedLocation);
+	sm_modifiedColor = g_configuration->GetColor(ConfiguredColor::ModifiedLocation);
+
+	if (!findLocationList)
+		return;
+
+	if (sm_displayDistanceColumn)
+		AddDistanceColumn();
+
+	SetWindowText("Find Window (Ctrl+Click to Navigate)");
+	LoadZoneConnections();
+}
+
+void CFindLocationWndOverride::OnAboutToUnhook()
+{
+	if (!findLocationList)
+		return;
+
+	RemoveCustomLocations();
+	RemoveDistanceColumn();
+
+	SetWindowText("Find Window");
 }
 
 void CFindLocationWndOverride::LoadZoneConnections()

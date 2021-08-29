@@ -15,6 +15,20 @@ static bool s_showWindow = false;
 
 void DrawEasyFindSettingsPanel();
 
+static void HelpLabel(const char* text)
+{
+	ImGui::SameLine();
+	ImGui::TextDisabled("(?)");
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		ImGui::TextUnformatted(text);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+}
+
 static void ZoneLabel(EQZoneIndex zoneId)
 {
 	EQZoneInfo* pZoneInfo = pWorldData->GetZone(zoneId);
@@ -596,6 +610,112 @@ static void DrawEasyFindZonePathGeneration()
 
 void DrawEasyFindSettingsPanel()
 {
+	if (!ImGui::BeginChild("##SettingsPanel"))
+	{
+		ImGui::EndChild();
+		return;
+	}
+
+	const ZoneGuideManagerClient& mgr = ZoneGuideManagerClient::Instance();
+
+	//----------------------------------------------------------------------------
+
+	ImGui::PushFont(imgui::LargeTextFont);
+	ImGui::TextColored(MQColor(255, 255, 0).ToImColor(), "General");
+	ImGui::Separator();
+	ImGui::PopFont();
+
+	ConfiguredGroupPlugin groupPlugin = g_configuration->GetPreferredGroupPlugin();
+
+	ImGui::SetNextItemWidth(100.0f);
+	if (ImGui::BeginCombo("##Group Plugin", GetGroupPluginPreferenceString(groupPlugin), ImGuiComboFlags_HeightSmall))
+	{
+		for (int i = 0; i < (int)ConfiguredGroupPlugin::Max; ++i)
+		{
+			ConfiguredGroupPlugin p = (ConfiguredGroupPlugin)i;
+			const bool is_selected = p == groupPlugin;
+
+			if (ImGui::Selectable(GetGroupPluginPreferenceString(p), is_selected))
+			{
+				g_configuration->SetPreferredGroupPlugin(p);
+				groupPlugin = p;
+			}
+
+			if (is_selected)
+				ImGui::SetItemDefaultFocus();
+		}
+
+		ImGui::EndCombo();
+	}
+
+	ImGui::SameLine();
+	ImGui::Text("Group Command Plugin");
+	HelpLabel("Select the plugin that should be used for issuing commands to your group");
+
+	if (groupPlugin == ConfiguredGroupPlugin::None)
+	{
+		ImGui::PushStyleColor(ImGuiCol_Text, MQColor(255, 255, 0).ToImU32());
+		ImGui::TextWrapped("No group plugin configured - No group commands will be available.");
+		ImGui::PopStyleColor();
+	}
+	else
+	{
+		ConfiguredGroupPlugin activePlugin = g_configuration->GetActiveGroupPlugin();
+
+		ImGui::PushStyleColor(ImGuiCol_Text, MQColor(0, 255, 0).ToImU32());
+
+		if (activePlugin == ConfiguredGroupPlugin::Dannet)
+			ImGui::TextWrapped("DanNet is selected for group commands.");
+		else if (activePlugin == ConfiguredGroupPlugin::EQBC)
+			ImGui::TextWrapped("EQBC is selected for group commands.");
+		else if (activePlugin == ConfiguredGroupPlugin::None)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Text, MQColor(255, 0, 0).ToImU32());
+			if (groupPlugin == ConfiguredGroupPlugin::Dannet)
+				ImGui::TextWrapped("DanNet is not loaded. Load the plugin to use group commands");
+			else if (groupPlugin == ConfiguredGroupPlugin::EQBC)
+				ImGui::TextWrapped("EQBC is not loaded. Load the plugin to use group commands");
+			else
+				ImGui::TextWrapped("Unable to find supported plugin for group commands. Load a plugin to enable group commands.");
+
+			ImGui::PopStyleColor();
+		}
+
+		ImGui::PopStyleColor();
+	}
+
+	ImGui::NewLine();
+	bool colorizeFindWindow = g_configuration->IsColoredFindWindowEnabled();
+	if (ImGui::Checkbox("Colorize Customized Entries in Find Window", &colorizeFindWindow))
+		g_configuration->SetColoredFindWindowEnabled(colorizeFindWindow);
+
+	bool distanceColumn = g_configuration->IsDistanceColumnEnabled();
+	if (ImGui::Checkbox("Display Distance Column in Find Window", &distanceColumn))
+		g_configuration->SetDistanceColumnEnabled(distanceColumn);
+
+	ImGui::NewLine();
+	ImGui::Text("Colors:");
+	for (int i = 0; i < (int)ConfiguredColor::MaxColors; ++i)
+	{
+		ConfiguredColor c = (ConfiguredColor)i;
+
+		MQColor color = g_configuration->GetColor(c);
+		ImColor imColor = color.ToImColor();
+
+		if (ImGui::ColorEdit3(GetConfiguredColorDescription(c), (float*)&imColor.Value.x))
+		{
+			color = MQColor(imColor);
+			g_configuration->SetColor(c, color);
+		}
+	}
+
+	//----------------------------------------------------------------------------
+	ImGui::NewLine();
+	ImGui::PushFont(imgui::LargeTextFont);
+	ImGui::TextColored(MQColor(255, 255, 0).ToImColor(), "Logging");
+	ImGui::Separator();
+	ImGui::PopFont();
+
 	bool changed = false;
 	bool debugLogging = g_configuration->GetLogLevel() == spdlog::level::debug;
 	if (ImGui::Checkbox("##debugLogging", &debugLogging))
@@ -608,7 +728,8 @@ void DrawEasyFindSettingsPanel()
 
 	spdlog::level::level_enum currentValue = g_configuration->GetNavLogLevel();
 
-	if (ImGui::BeginCombo("Navigation Log Level", spdlog::level::to_string_view(currentValue).data(), ImGuiComboFlags_HeightSmall))
+	ImGui::SetNextItemWidth(100.0f);
+	if (ImGui::BeginCombo("##Navigation Log Level", spdlog::level::to_string_view(currentValue).data(), ImGuiComboFlags_HeightSmall))
 	{
 		for (size_t n = 0; n < lengthof(spdlog::level::level_string_views); ++n)
 		{
@@ -623,59 +744,75 @@ void DrawEasyFindSettingsPanel()
 		}
 		ImGui::EndCombo();
 	}
+	ImGui::SameLine(); ImGui::Text("Navigation Log Level");
+	HelpLabel("This controls the messages that are written by Nav while it is being driven by EasyFind");
 
+	//----------------------------------------------------------------------------
+	ImGui::NewLine();
+	ImGui::PushFont(imgui::LargeTextFont);
+	ImGui::TextColored(MQColor(255, 255, 0).ToImColor(), "Zone Guide Transfer Types");
 	ImGui::Separator();
-	const ZoneGuideManagerClient& mgr = ZoneGuideManagerClient::Instance();
+	ImGui::PopFont();
+
+	ImGui::TextWrapped("EasyFind is able to utilize zone connections from the Zone Guide window. However, not all "
+		"connections are meaningful to EasyFind. These options provide a way to blanket disable some types of connection "
+		"if they cause problems for EasyFind.\n\n"
+		"If a transfer type is disabled, then it will not be used when using /travelto");
 
 	if (mgr.zoneGuideDataSet)
 	{
-		if (ImGui::CollapsingHeader("Enabled Transfer Types"))
+		int numItemsInColumn = mgr.transferTypes.GetCount() / 3;
+		int item = 0;
+
+		ImGui::Columns(3, "##TransferTypesColumns", false);
+
+		for (int i = 0; i < mgr.transferTypes.GetCount(); ++i)
 		{
-			ImGui::Indent();
-			ImGui::TextWrapped("Disabled transfer types will not be included in calculations for zone paths.");
+			CXStr str = mgr.GetZoneTransferTypeNameByIndex(i);
 
-			for (int i = 0; i < mgr.transferTypes.GetCount(); ++i)
+			bool isSupported = g_configuration->IsSupportedTransferType(i);
+
+			if (!isSupported)
 			{
-				CXStr str = mgr.GetZoneTransferTypeNameByIndex(i);
+				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 
-				bool isSupported = g_configuration->IsSupportedTransferType(i);
+				bool checked = false;
+				ImGui::Checkbox(str.c_str(), &checked);
 
-				if (!isSupported)
+				ImGui::PopItemFlag();
+				ImGui::PopStyleColor();
+
+				HelpLabel("This item is disabled because it is not supported by easyfind");
+			}
+			else
+			{
+				bool isEnabled = !g_configuration->IsDisabledTransferType(i);
+
+				if (ImGui::Checkbox(str.c_str(), &isEnabled))
 				{
-					ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-					ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-
-					bool checked = false;
-					ImGui::Checkbox(str.c_str(), &checked);
-					ImGui::SameLine();
-
-					ImGui::PopItemFlag();
-					ImGui::PopStyleColor();
-
-					ImGui::TextDisabled("(?)");
-					if (ImGui::IsItemHovered())
-					{
-						ImGui::BeginTooltip();
-						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-						ImGui::TextUnformatted("This item is disabled because it is not supported by easyfind");
-						ImGui::PopTextWrapPos();
-						ImGui::EndTooltip();
-					}
-				}
-				else
-				{
-					bool isEnabled = !g_configuration->IsDisabledTransferType(i);
-
-					if (ImGui::Checkbox(str.c_str(), &isEnabled))
-					{
-						g_configuration->SetDisabledTransferType(i, !isEnabled);
-					}
+					g_configuration->SetDisabledTransferType(i, !isEnabled);
 				}
 			}
 
-			ImGui::Unindent();
+			if (item == numItemsInColumn)
+			{
+				ImGui::NextColumn();
+				item = 0;
+			}
+			else
+			{
+				item++;
+			}
 		}
+		ImGui::Columns(1);
 	}
+	else
+	{
+		ImGui::Text("Zone Connections have not been loaded. Come back once in game.");
+	}
+
+	ImGui::EndChild();
 }
 
 static void DrawEasyFindSettingsPanel_MQSettings()
@@ -725,6 +862,11 @@ void ImGui_OnUpdate()
 					g_zoneConnections->ReloadFindableLocations();
 				}
 
+				if (ImGui::MenuItem("Reload Settings"))
+				{
+					g_configuration->ReloadSettings();
+				}
+
 				ImGui::EndMenu();
 			}
 
@@ -733,6 +875,17 @@ void ImGui_OnUpdate()
 
 		if (ImGui::BeginTabBar("EasyFindTabBar", ImGuiTabBarFlags_None))
 		{
+			if (ImGui::BeginTabItem("Welcome"))
+			{
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("Settings"))
+			{
+				DrawEasyFindSettingsPanel();
+				ImGui::EndTabItem();
+			}
+
 			if (ImGui::BeginTabItem("Find Window"))
 			{
 				DrawEasyFindWindowConnections();
@@ -742,12 +895,6 @@ void ImGui_OnUpdate()
 			if (ImGui::BeginTabItem("Zone Path Generation"))
 			{
 				DrawEasyFindZonePathGeneration();
-				ImGui::EndTabItem();
-			}
-
-			if (ImGui::BeginTabItem("Settings"))
-			{
-				DrawEasyFindSettingsPanel();
 				ImGui::EndTabItem();
 			}
 

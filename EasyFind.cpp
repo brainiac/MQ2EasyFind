@@ -39,6 +39,11 @@ SPAWNINFO* FindSpawnByName(const char* spawnName, bool exact)
 	return pSpawn;
 }
 
+void DoGroupCommand(const char* command)
+{
+
+}
+
 //============================================================================
 
 void AddFindableLocationLuaBindings(sol::state_view sv)
@@ -210,6 +215,12 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
+	if (ci_starts_with(szLine, "group"))
+	{
+		szLine += strlen("group") + 1;
+
+	}
+
 	if (!pLocalPC)
 	{
 		SPDLOG_ERROR("You need to be in game to travel!");
@@ -332,6 +343,8 @@ PLUGIN_API void OnLoadPlugin(const char* Name)
 	{
 		Lua_Initialize();
 	}
+
+	g_configuration->HandlePluginChange(Name, true);
 }
 
 PLUGIN_API void OnUnloadPlugin(const char* Name)
@@ -345,6 +358,8 @@ PLUGIN_API void OnUnloadPlugin(const char* Name)
 	{
 		Lua_Shutdown();
 	}
+
+	g_configuration->HandlePluginChange(Name, false);
 }
 
 PLUGIN_API void OnUpdateImGui()

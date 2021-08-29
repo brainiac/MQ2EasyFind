@@ -69,6 +69,8 @@ struct FindLocationRequestState
 SPAWNINFO* FindSpawnByName(const char* spawnName, bool exact);
 void ExecuteLuaScript(std::string_view luaScript, const std::shared_ptr<FindableLocation>& findableLocation);
 
+void DoGroupCommand(const char* command);
+
 // Find Window Handlers
 void FindWindow_Initialize();
 void FindWindow_Shutdown();

@@ -95,6 +95,9 @@ public:
 	bool FindZoneConnectionByZoneIndex(EQZoneIndex zoneId, bool group);
 	bool FindLocation(std::string_view searchTerm, bool group);
 
+	void AddDistanceColumn();
+	void RemoveDistanceColumn();
+
 	void OnHooked();
 	void OnAboutToUnhook();
 
@@ -123,4 +126,11 @@ private:
 	static inline std::string sm_queuedSearchTerm;
 	static inline bool sm_queuedGroupParam = false;
 	static inline EQZoneIndex sm_queuedZoneId = 0;
+
+	// tracking for options changes
+	static inline bool sm_displayDistanceColumn = true;
+	static inline bool sm_displayColors = true;
+
+	static inline MQColor sm_addedColor;
+	static inline MQColor sm_modifiedColor;
 };

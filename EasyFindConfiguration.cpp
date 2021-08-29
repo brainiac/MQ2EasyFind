@@ -14,10 +14,48 @@ namespace fs = std::filesystem;
 
 EasyFindConfiguration* g_configuration = nullptr;
 
-std::array<MQColor, (size_t)ConfiguredColor::MaxColors> s_defaultColors = {
+static constexpr std::array<MQColor, (size_t)ConfiguredColor::MaxColors> s_defaultColors = {
 	MQColor(96, 255, 72),          // AddedLocation
 	MQColor(64, 192, 255),         // ModifiedLocation
 };
+
+const char* GetConfiguredColorName(ConfiguredColor color)
+{
+	switch (color)
+	{
+	case ConfiguredColor::AddedLocation: return "AddedLocation";
+	case ConfiguredColor::ModifiedLocation: return "ModifiedLocation";
+	default: return "Unknown";
+	}
+}
+
+const char* GetConfiguredColorDescription(ConfiguredColor color)
+{
+	switch (color)
+	{
+	case ConfiguredColor::AddedLocation: return "Added Locations";
+	case ConfiguredColor::ModifiedLocation: return "Modified Locations";
+	default: return "Unknown";
+	}
+}
+
+static const std::vector<std::pair<ConfiguredGroupPlugin, const char*>> s_groupPluginNames = {
+	{ ConfiguredGroupPlugin::Auto, "auto" },
+	{ ConfiguredGroupPlugin::Dannet, "dannet" },
+	{ ConfiguredGroupPlugin::EQBC, "eqbc" },
+	{ ConfiguredGroupPlugin::None, "none" },
+};
+
+const char* GetGroupPluginPreferenceString(ConfiguredGroupPlugin plugin)
+{
+	for (const auto& p : s_groupPluginNames)
+	{
+		if (p.first == plugin)
+			return p.second;
+	}
+
+	return "unknown";
+}
 
 //============================================================================
 
@@ -39,6 +77,77 @@ namespace YAML
 			std::string nodeValue = node.as<std::string>(std::string());
 			data = spdlog::level::from_str(nodeValue);
 			return true;
+		}
+	};
+
+	template <>
+	struct convert<ConfiguredGroupPlugin> {
+		static Node encode(ConfiguredGroupPlugin data) {
+			Node node;
+
+			node = GetGroupPluginPreferenceString(data);
+			return node;
+		}
+		static bool decode(const Node& node, ConfiguredGroupPlugin& data) {
+			if (!node.IsScalar())
+				return false;
+			std::string nodeValue = node.as<std::string>(std::string());
+			for (const auto& p : s_groupPluginNames)
+			{
+				if (std::string_view{ p.second } == nodeValue)
+				{
+					data = p.first;
+					return true;
+				}
+			}
+			return false;
+		}
+	};
+
+	template <>
+	struct convert<mq::MQColor> {
+		static Node encode(const mq::MQColor& data) {
+			Node node;
+
+			// could probably have a to_string for MQColor
+			if (data.Alpha == 255) {
+				// full alpha we just use rgb hex value
+				node = fmt::format("#{:02x}{:02x}{:02x}", data.Red, data.Green, data.Blue);
+			}
+			else {
+				// transparent we use rgba components
+				std::array<uint8_t, 4> components = {
+					data.Red, data.Green, data.Blue, data.Alpha
+				};
+
+				node = components;
+			}
+
+			return node;
+		}
+		static bool decode(const Node& node, mq::MQColor& data) {
+			try {
+				if (node.IsScalar()) {
+					std::string hexValue = node.as<std::string>(std::string());
+
+					data = MQColor(hexValue.c_str());
+					return true;
+				}
+				else if (node.IsSequence()) {
+					std::vector<uint8_t> components = node.as<std::vector<uint8_t>>(std::vector<uint8_t>());
+					if (components.size() != 4) {
+						return false;
+					}
+
+					data = MQColor(components[0], components[1], components[2], components[3]);
+					return true;
+				}
+			}
+			catch (const mq::detail::InvalidHexChar&) {
+				return false;
+			}
+
+			return false;
 		}
 	};
 }
@@ -114,6 +223,9 @@ EasyFindConfiguration::EasyFindConfiguration()
 	spdlog::set_pattern("%L %Y-%m-%d %T.%f [%n] %v (%@)");
 	spdlog::flush_on(spdlog::level::debug);
 
+	m_dannetLoaded = IsPluginLoaded("MQ2DanNet");
+	m_eqbcLoaded = IsPluginLoaded("MQ2EQBC");
+
 	LoadSettings();
 }
 
@@ -122,36 +234,26 @@ EasyFindConfiguration::~EasyFindConfiguration()
 	spdlog::shutdown();
 }
 
-void EasyFindConfiguration::SetLogLevel(spdlog::level::level_enum level)
-{
-	m_chatSink->set_level(level);
-	m_configNode["GlobalLogLevel"] = level;
-
-	SaveSettings();
-}
-
-spdlog::level::level_enum EasyFindConfiguration::GetLogLevel() const
-{
-	return m_chatSink->level();
-}
-
-void EasyFindConfiguration::SetNavLogLevel(spdlog::level::level_enum level)
-{
-	m_navLogLevel = level;
-	m_configNode["NavLogLevel"] = level;
-
-	SaveSettings();
-}
-
-spdlog::level::level_enum EasyFindConfiguration::GetNavLogLevel() const
-{
-	return m_navLogLevel;
-}
+//============================================================================
 
 void EasyFindConfiguration::ReloadSettings()
 {
 	SPDLOG_INFO("Reloading settings");
 	LoadSettings();
+}
+
+void EasyFindConfiguration::ResetSettings()
+{
+	m_disabledTransferTypesPrefs.clear();
+	m_configuredColors = s_defaultColors;
+	m_navLogLevel = spdlog::level::err;
+	m_chatSink->set_level(spdlog::level::info);
+	m_groupPluginSelection = ConfiguredGroupPlugin::Auto;
+	m_distanceColumnEnabled = true;
+	m_coloredFindWindowEnabled = true;
+
+	m_configNode = YAML::Node();
+	SaveSettings();
 }
 
 void EasyFindConfiguration::LoadSettings()
@@ -160,10 +262,26 @@ void EasyFindConfiguration::LoadSettings()
 	{
 		m_configNode = YAML::LoadFile(m_configFile);
 
+		// Log levels
 		spdlog::level::level_enum globalLogLevel = m_configNode["GlobalLogLevel"].as<spdlog::level::level_enum>(spdlog::level::info);
-		SetLogLevel(globalLogLevel);
+		m_chatSink->set_level(globalLogLevel);
+		m_navLogLevel = m_configNode["NavLogLevel"].as<spdlog::level::level_enum>(spdlog::level::err);
 
+		// Colors
+		for (int i = 0; i < (int)m_configuredColors.size(); ++i)
+		{
+			ConfiguredColor c = (ConfiguredColor)i;
+
+			m_configuredColors[i] = m_configNode["Colors"][GetConfiguredColorName(c)].as<mq::MQColor>(s_defaultColors[i]);
+		}
+
+		// transfer types
 		LoadDisabledTransferTypes();
+
+		m_groupPluginSelection = m_configNode["GroupPlugin"].as<ConfiguredGroupPlugin>(ConfiguredGroupPlugin::Auto);
+
+		m_coloredFindWindowEnabled = m_configNode["ColoredFindWindow"].as<bool>(true);
+		m_distanceColumnEnabled = m_configNode["DistanceColumn"].as<bool>(true);
 	}
 	catch (const YAML::ParserException& ex)
 	{
@@ -181,23 +299,88 @@ void EasyFindConfiguration::LoadSettings()
 
 void EasyFindConfiguration::SaveSettings()
 {
-	std::fstream file(m_configFile, std::ios::out);
-
-	if (!m_configNode.IsNull())
+	try
 	{
-		YAML::Emitter y_out;
-		y_out.SetIndent(4);
-		y_out.SetFloatPrecision(2);
-		y_out.SetDoublePrecision(2);
-		y_out << m_configNode;
+		std::fstream file(m_configFile, std::ios::out);
 
-		file << y_out.c_str();
+		if (!m_configNode.IsNull())
+		{
+			YAML::Emitter y_out;
+			y_out.SetIndent(4);
+			y_out.SetFloatPrecision(2);
+			y_out.SetDoublePrecision(2);
+			y_out << m_configNode;
+
+			file << y_out.c_str();
+		}
+
 	}
+	catch (const std::exception&)
+	{
+		SPDLOG_ERROR("Failed to write settings file: {}", m_configFile);
+	}
+}
+
+//============================================================================
+
+void EasyFindConfiguration::SetColor(ConfiguredColor color, MQColor value)
+{
+	m_configuredColors[(int)color] = value;
+	m_configNode["Colors"][GetConfiguredColorName(color)] = value;
+
+	SaveSettings();
+}
+
+MQColor EasyFindConfiguration::GetColor(ConfiguredColor color) const
+{
+	return m_configuredColors[(int)color];
 }
 
 MQColor EasyFindConfiguration::GetDefaultColor(ConfiguredColor color) const
 {
 	return s_defaultColors[(int)color];
+}
+
+void EasyFindConfiguration::SetLogLevel(spdlog::level::level_enum level)
+{
+	m_chatSink->set_level(level);
+	m_configNode["GlobalLogLevel"] = m_chatSink->level();
+
+	SaveSettings();
+}
+
+spdlog::level::level_enum EasyFindConfiguration::GetLogLevel() const
+{
+	return m_chatSink->level();
+}
+
+void EasyFindConfiguration::SetNavLogLevel(spdlog::level::level_enum level)
+{
+	m_navLogLevel = level;
+	m_configNode["NavLogLevel"] = m_navLogLevel;
+
+	SaveSettings();
+}
+
+spdlog::level::level_enum EasyFindConfiguration::GetNavLogLevel() const
+{
+	return m_navLogLevel;
+}
+
+void EasyFindConfiguration::SetColoredFindWindowEnabled(bool colorize)
+{
+	m_coloredFindWindowEnabled = colorize;
+	m_configNode["ColoredFindWindow"] = colorize;
+
+	SaveSettings();
+}
+
+void EasyFindConfiguration::SetDistanceColumnEnabled(bool enable)
+{
+	m_distanceColumnEnabled = enable;
+	m_configNode["DistanceColumn"] = enable;
+
+	SaveSettings();
 }
 
 //----------------------------------------------------------------------------
@@ -327,13 +510,67 @@ void EasyFindConfiguration::SetDisabledTransferType(int transferTypeIndex, bool 
 		if (iter == m_disabledTransferTypesPrefs.end())
 			m_disabledTransferTypesPrefs.push_back(std::string(transferTypeName));
 
-		SaveSettings();
+		m_configNode["DisabledTransferTypes"] = m_disabledTransferTypesPrefs;
 	}
 	else
 	{
 		if (iter != m_disabledTransferTypesPrefs.end())
 			m_disabledTransferTypesPrefs.erase(iter);
 
-		SaveSettings();
+		m_configNode["DisabledTransferTypes"] = m_disabledTransferTypesPrefs;
+	}
+
+	SaveSettings();
+}
+
+//----------------------------------------------------------------------------
+
+ConfiguredGroupPlugin EasyFindConfiguration::GetPreferredGroupPlugin() const
+{
+	return m_groupPluginSelection;
+}
+
+void EasyFindConfiguration::SetPreferredGroupPlugin(ConfiguredGroupPlugin p)
+{
+	m_groupPluginSelection = p;
+	m_configNode["GroupPlugin"] = p;
+
+	SaveSettings();
+}
+
+ConfiguredGroupPlugin EasyFindConfiguration::GetActiveGroupPlugin() const
+{
+	switch (m_groupPluginSelection)
+	{
+	case ConfiguredGroupPlugin::Auto:
+		if (m_dannetLoaded)
+			return ConfiguredGroupPlugin::Dannet;
+		if (m_eqbcLoaded)
+			return ConfiguredGroupPlugin::EQBC;
+		break;
+	case ConfiguredGroupPlugin::Dannet:
+		if (m_dannetLoaded)
+			return ConfiguredGroupPlugin::Dannet;
+		break;
+	case ConfiguredGroupPlugin::EQBC:
+		if (m_eqbcLoaded)
+			return ConfiguredGroupPlugin::EQBC;
+		break;
+	default:
+		break;
+	}
+
+	return ConfiguredGroupPlugin::None;
+}
+
+void EasyFindConfiguration::HandlePluginChange(std::string_view pluginName, bool loaded)
+{
+	if (ci_equals(pluginName, "MQEQBC"))
+	{
+		m_eqbcLoaded = loaded;
+	}
+	else if (ci_equals(pluginName, "MQ2DanNet"))
+	{
+		m_dannetLoaded = loaded;
 	}
 }

@@ -14,11 +14,24 @@
 
 enum class ConfiguredColor
 {
-	AddedLocation,
+	AddedLocation = 0,
 	ModifiedLocation,
 
 	MaxColors,
 };
+const char* GetConfiguredColorName(ConfiguredColor color);
+const char* GetConfiguredColorDescription(ConfiguredColor color);
+
+enum class ConfiguredGroupPlugin
+{
+	None = 0,
+	Auto,
+	EQBC,
+	Dannet,
+
+	Max,
+};
+const char* GetGroupPluginPreferenceString(ConfiguredGroupPlugin plugin);
 
 namespace spdlog {
 	namespace sinks {
@@ -36,9 +49,10 @@ public:
 	void SaveSettings();
 
 	void ReloadSettings();
+	void ResetSettings();
 
-	void SetColor(ConfiguredColor color, MQColor value) { m_configuredColors[(int)color] = value; }
-	MQColor GetColor(ConfiguredColor color) const { return m_configuredColors[(int)color]; }
+	void SetColor(ConfiguredColor color, MQColor value);
+	MQColor GetColor(ConfiguredColor color) const;
 	MQColor GetDefaultColor(ConfiguredColor color) const;
 
 	void SetLogLevel(spdlog::level::level_enum level);
@@ -47,13 +61,30 @@ public:
 	void SetNavLogLevel(spdlog::level::level_enum level);
 	spdlog::level::level_enum GetNavLogLevel() const;
 
-	int GetNavDistance() const { return 15; }
+	void SetColoredFindWindowEnabled(bool colorize);
+	bool IsColoredFindWindowEnabled() const { return m_coloredFindWindowEnabled; }
+
+	void SetDistanceColumnEnabled(bool enable);
+	bool IsDistanceColumnEnabled() const { return m_distanceColumnEnabled; }
 
 	// transfer types
 	void RefreshTransferTypes();
 	bool IsSupportedTransferType(int transferTypeIndex) const;
 	bool IsDisabledTransferType(int transferTypeIndex) const;
 	void SetDisabledTransferType(int transferTypeIndex, bool disabled);
+
+	// group execution behaviors
+	bool IsEQBCLoaded() const { return m_eqbcLoaded; }
+	bool IsDannetLoaded() const { return m_dannetLoaded; }
+
+	ConfiguredGroupPlugin GetPreferredGroupPlugin() const;        // returns user preference.
+	void SetPreferredGroupPlugin(ConfiguredGroupPlugin p);
+
+	ConfiguredGroupPlugin GetActiveGroupPlugin() const;           // returns the actual thing to use.
+
+	void HandlePluginChange(std::string_view pluginName, bool loaded);
+
+	int GetNavDistance() const { return 15; }
 
 private:
 	void LoadDisabledTransferTypes();
@@ -70,6 +101,13 @@ private:
 	std::array<MQColor, (size_t)ConfiguredColor::MaxColors> m_configuredColors;
 
 	spdlog::level::level_enum m_navLogLevel = spdlog::level::err;
+
+	bool m_eqbcLoaded = false;
+	bool m_dannetLoaded = false;
+	ConfiguredGroupPlugin m_groupPluginSelection = ConfiguredGroupPlugin::Auto;
+
+	bool m_distanceColumnEnabled = true;
+	bool m_coloredFindWindowEnabled = true;
 };
 
 extern EasyFindConfiguration* g_configuration;
