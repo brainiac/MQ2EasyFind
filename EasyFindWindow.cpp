@@ -866,6 +866,15 @@ bool CFindLocationWndOverride::FindZoneConnectionByZoneIndex(EQZoneIndex zoneId,
 
 bool CFindLocationWndOverride::FindLocation(std::string_view searchTerm, bool group)
 {
+	// If search term starts with "nav" then we forward to nav
+	if (ci_starts_with(searchTerm, "nav "))
+	{
+		searchTerm = searchTerm.substr(strlen("nav") + 1);
+		searchTerm = trim(searchTerm);
+
+		return Navigation_ExecuteCommand(searchTerm);
+	}
+
 	if (!sm_customLocationsAdded)
 	{
 		sm_queuedSearchTerm = searchTerm;

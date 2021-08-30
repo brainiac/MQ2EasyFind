@@ -58,6 +58,7 @@ struct FindLocationRequestState
 	std::shared_ptr<FindableLocation> findableLocation;
 
 	std::string name;
+	std::string navCommand;
 
 	// state while processing
 	bool activateSwitch = false;
@@ -95,6 +96,7 @@ void Navigation_Zoned();
 void Navigation_Reset();
 bool Navigation_IsInitialized();
 bool Navigation_ExecuteCommand(FindLocationRequestState&& request);
+bool Navigation_ExecuteCommand(std::string_view navCommand);
 void Navigation_Stop();
 
 // ZonePath Handlers

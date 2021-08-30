@@ -7,7 +7,7 @@
 static nav::NavAPI* s_nav = nullptr;
 static int s_navObserverId = 0;
 
-FindLocationRequestState g_activeFindState;
+FindLocationRequestState g_activeNavigationState;
 
 //----------------------------------------------------------------------------
 
@@ -16,34 +16,34 @@ bool Navigation_ExecuteCommand(FindLocationRequestState&& request)
 	if (!s_nav)
 		return false;
 
-	g_activeFindState = std::move(request);
-	g_activeFindState.pending = true;
+	g_activeNavigationState = std::move(request);
+	g_activeNavigationState.pending = true;
 
 	std::string command;
 	fmt::string_view logLevel = spdlog::level::to_string_view(g_configuration->GetNavLogLevel());
 
-	if (g_activeFindState.type == FindLocation_Player)
+	if (g_activeNavigationState.type == FindLocation_Player)
 	{
 		// nav by spawnID:
-		command = fmt::format("spawn id {} | dist={} log={} tag=easyfind", g_activeFindState.spawnID,
+		command = fmt::format("spawn id {} | dist={} log={} tag=easyfind", g_activeNavigationState.spawnID,
 			g_configuration->GetNavDistance(), logLevel);
 	}
-	else if (g_activeFindState.type == FindLocation_Switch || g_activeFindState.type == FindLocation_Location)
+	else if (g_activeNavigationState.type == FindLocation_Switch || g_activeNavigationState.type == FindLocation_Location)
 	{
-		if (g_activeFindState.findableLocation)
+		if (g_activeNavigationState.findableLocation)
 		{
-			if (!g_activeFindState.findableLocation->spawnName.empty())
+			if (!g_activeNavigationState.findableLocation->spawnName.empty())
 			{
 				command = fmt::format("spawn {} | dist={} log={} tag=easyfind",
-					g_activeFindState.findableLocation->spawnName, g_configuration->GetNavDistance(), logLevel);
+					g_activeNavigationState.findableLocation->spawnName, g_configuration->GetNavDistance(), logLevel);
 			}
 		}
 
 		if (command.empty())
 		{
-			if (g_activeFindState.location != glm::vec3())
+			if (g_activeNavigationState.location != glm::vec3())
 			{
-				glm::vec3 loc = g_activeFindState.location;
+				glm::vec3 loc = g_activeNavigationState.location;
 
 				float newHeight = pDisplay->GetFloorHeight(loc.x, loc.y, loc.z, 2.0f);
 				if (newHeight > -32000.f)
@@ -51,19 +51,39 @@ bool Navigation_ExecuteCommand(FindLocationRequestState&& request)
 
 				command = fmt::format("locyxz {:.2f} {:.2f} {:.2f} log={} tag=easyfind", loc.x, loc.y, loc.z, logLevel);
 
-				if (g_activeFindState.type == FindLocation_Switch)
-					g_activeFindState.activateSwitch = true;
+				if (g_activeNavigationState.type == FindLocation_Switch)
+					g_activeNavigationState.activateSwitch = true;
 			}
-			else if (g_activeFindState.type == FindLocation_Switch)
+			else if (g_activeNavigationState.type == FindLocation_Switch)
 			{
-				command = fmt::format("door id {} click log={} tag=easyfind", g_activeFindState.switchID, logLevel);
+				command = fmt::format("door id {} click log={} tag=easyfind", g_activeNavigationState.switchID, logLevel);
 			}
 		}
 	}
 
 	if (command[0] != 0)
 	{
-		s_nav->ExecuteNavCommand(command);
+		g_activeNavigationState.navCommand = std::move(command);
+		s_nav->ExecuteNavCommand(g_activeNavigationState.navCommand);
+		return true;
+	}
+
+	return false;
+}
+
+bool Navigation_ExecuteCommand(std::string_view navCommand)
+{
+	if (!s_nav)
+		return false;
+
+	g_activeNavigationState = {};
+
+	if (!navCommand.empty())
+	{
+		g_activeNavigationState.pending = true;
+
+		g_activeNavigationState.navCommand = std::string{ navCommand };
+		s_nav->ExecuteNavCommand(g_activeNavigationState.navCommand);
 		return true;
 	}
 
@@ -100,36 +120,36 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 
 	if (eventType == nav::NavObserverEvent::NavStarted)
 	{
-		g_activeFindState.valid = true;
-		g_activeFindState.pending = false;
+		g_activeNavigationState.valid = true;
+		g_activeNavigationState.pending = false;
 	}
 	else if (eventType == nav::NavObserverEvent::NavDestinationReached)
 	{
-		if (g_activeFindState.valid)
+		if (g_activeNavigationState.valid)
 		{
 			// Determine if we have extra steps to perform once we reach the destination.
-			if (g_activeFindState.activateSwitch)
+			if (g_activeNavigationState.activateSwitch)
 			{
-				SPDLOG_DEBUG("Activating switch: \ag{}", g_activeFindState.switchID);
+				SPDLOG_DEBUG("Activating switch: \ag{}", g_activeNavigationState.switchID);
 
-				EQSwitch* pSwitch = GetSwitchByID(g_activeFindState.switchID);
+				EQSwitch* pSwitch = GetSwitchByID(g_activeNavigationState.switchID);
 				if (pSwitch)
 				{
 					pSwitch->UseSwitch(pLocalPlayer->SpawnID, -1, 0, nullptr);
 				}
 			}
 
-			if (g_activeFindState.findableLocation && !g_activeFindState.findableLocation->luaScript.empty())
+			if (g_activeNavigationState.findableLocation && !g_activeNavigationState.findableLocation->luaScript.empty())
 			{
-				ExecuteLuaScript(g_activeFindState.findableLocation->luaScript, g_activeFindState.findableLocation);
+				ExecuteLuaScript(g_activeNavigationState.findableLocation->luaScript, g_activeNavigationState.findableLocation);
 			}
 
-			g_activeFindState.valid = false;
+			g_activeNavigationState.valid = false;
 		}
 	}
 	else if (eventType == nav::NavObserverEvent::NavCanceled)
 	{
-		if (g_activeFindState.valid)
+		if (g_activeNavigationState.valid)
 		{
 			// Need to find a better way to do this.
 			if (gZoning)
@@ -138,25 +158,25 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 				// right location.
 
 				int zoneId = pLocalPC ? pWorldData->GetZoneBaseId(pLocalPC->zoneId) : -1;
-				SPDLOG_DEBUG("NavCanceled because of zoning. New zoneId: {}, we are expecting: {}", zoneId, g_activeFindState.zoneId);
+				SPDLOG_DEBUG("NavCanceled because of zoning. New zoneId: {}, we are expecting: {}", zoneId, g_activeNavigationState.zoneId);
 
-				if (g_activeFindState.zoneId == zoneId)
+				if (g_activeNavigationState.zoneId == zoneId)
 					return;
 			}
 
-			g_activeFindState.valid = false;
+			g_activeNavigationState.valid = false;
 
 			ZonePath_NavCanceled(true);
 		}
 	}
 	else if (eventType == nav::NavObserverEvent::NavFailed)
 	{
-		if (g_activeFindState.pending)
+		if (g_activeNavigationState.pending)
 		{
-			g_activeFindState.valid = false;
-			g_activeFindState.pending = false;
+			g_activeNavigationState.valid = false;
+			g_activeNavigationState.pending = false;
 
-			SPDLOG_ERROR("Failed to find a path to the destination: \ay{}", g_activeFindState.name);
+			SPDLOG_ERROR("Failed to find a path to the destination: \ay{}", g_activeNavigationState.name);
 			ZonePath_NavCanceled(false);
 		}
 	}
@@ -185,20 +205,20 @@ void Navigation_Shutdown()
 void Navigation_Zoned()
 {
 	// Clear all local navigation state (anything not meant to carry over to the next zone)
-	g_activeFindState.valid = {};
+	g_activeNavigationState.valid = {};
 }
 
 void Navigation_Reset()
 {
 	// Clear all existing navigation state
-	g_activeFindState = {};
+	g_activeNavigationState = {};
 }
 
 void Navigation_BeginZone()
 {
 	// TODO: Zoning while nav is active counts as a cancel, but maybe it shouldn't.
-	g_activeFindState.valid = false;
-	g_activeFindState.pending = false;
+	g_activeNavigationState.valid = false;
+	g_activeNavigationState.pending = false;
 }
 
 bool Navigation_IsInitialized()
