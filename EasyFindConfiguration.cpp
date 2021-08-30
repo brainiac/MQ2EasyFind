@@ -251,6 +251,8 @@ void EasyFindConfiguration::ResetSettings()
 	m_groupPluginSelection = ConfiguredGroupPlugin::Auto;
 	m_distanceColumnEnabled = true;
 	m_coloredFindWindowEnabled = true;
+	m_silentGroupCommands = true;
+	m_verboseMessages = false;
 
 	m_configNode = YAML::Node();
 	SaveSettings();
@@ -283,6 +285,7 @@ void EasyFindConfiguration::LoadSettings()
 		m_coloredFindWindowEnabled = m_configNode["ColoredFindWindow"].as<bool>(true);
 		m_distanceColumnEnabled = m_configNode["DistanceColumn"].as<bool>(true);
 		m_silentGroupCommands = m_configNode["SilentGroupCommands"].as<bool>(true);
+		m_verboseMessages = m_configNode["VerboseMessages"].as<bool>(false);
 	}
 	catch (const YAML::ParserException& ex)
 	{
@@ -388,6 +391,14 @@ void EasyFindConfiguration::SetSilentGroupCommands(bool silent)
 {
 	m_silentGroupCommands = silent;
 	m_configNode["SilentGroupCommands"] = silent;
+
+	SaveSettings();
+}
+
+void EasyFindConfiguration::SetVerboseMessages(bool verbose)
+{
+	m_verboseMessages = verbose;
+	m_configNode["VerboseMessages"] = verbose;
 
 	SaveSettings();
 }

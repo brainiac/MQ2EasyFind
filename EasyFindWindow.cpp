@@ -735,7 +735,7 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 		if (customLocation)
 			request.findableLocation = std::make_shared<FindableLocation>(*customLocation);
 
-		if (pSwitch)
+		if (pSwitch && g_configuration->IsVerboseMessages())
 		{
 			SPDLOG_INFO("Navigating to \ayZone Connection\ax: \ag{}\ax (via switch \ao{}\ax)", locationName, pSwitch->Name);
 		}

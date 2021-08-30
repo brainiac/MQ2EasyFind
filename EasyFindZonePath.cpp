@@ -7,7 +7,7 @@
 #include <fstream>
 #include <filesystem>
 
-static std::vector<ZonePathNode> s_activeZonePath;
+static ZonePathRequest s_activeZonePathRequest;
 
 // /travelto State
 static bool s_travelToActive = false;
@@ -215,10 +215,10 @@ std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneInde
 
 void ZonePath_FollowActive()
 {
-	s_activeZonePath.clear();
+	s_activeZonePathRequest.clear();
 
 	for (const ZonePathData& pathData : ZoneGuideManagerClient::Instance().activePath)
-		s_activeZonePath.emplace_back(pathData);
+		s_activeZonePathRequest.zonePath.emplace_back(pathData);
 
 	s_travelToActive = true;
 	s_findNextPath = true;
@@ -237,18 +237,18 @@ static bool ActivateNextPath()
 	if (pFindLocWnd && pFindLocWnd->IsCustomLocationsAdded())
 	{
 		s_findNextPath = false;
-		if (!s_activeZonePath.empty())
+		if (!s_activeZonePathRequest.zonePath.empty())
 		{
 			EQZoneIndex nextZoneId = 0;
 			int transferTypeIndex = -1;
 
 			// Find the next zone to travel to!
-			for (size_t i = 0; i < s_activeZonePath.size() - 1; ++i)
+			for (size_t i = 0; i < s_activeZonePathRequest.zonePath.size() - 1; ++i)
 			{
-				if (s_activeZonePath[i].zoneId == s_currentZone)
+				if (s_activeZonePathRequest.zonePath[i].zoneId == s_currentZone)
 				{
-					nextZoneId = s_activeZonePath[i + 1].zoneId;
-					transferTypeIndex = s_activeZonePath[i].transferTypeIndex;
+					nextZoneId = s_activeZonePathRequest.zonePath[i + 1].zoneId;
+					transferTypeIndex = s_activeZonePathRequest.zonePath[i].transferTypeIndex;
 					break;
 				}
 			}
@@ -270,11 +270,11 @@ static bool ActivateNextPath()
 	return false;
 }
 
-void ZonePath_SetActive(const std::vector<ZonePathNode>& zonePathData, bool travel)
+void ZonePath_SetActive(const ZonePathRequest& zonePathData, bool travel)
 {
-	ZonePathArray pathArray(zonePathData.size());
+	ZonePathArray pathArray(zonePathData.zonePath.size());
 
-	for (const ZonePathNode& pathData : zonePathData)
+	for (const ZonePathNode& pathData : zonePathData.zonePath)
 	{
 		pathArray.Add(ZonePathData(pathData.zoneId, pathData.transferTypeIndex));
 	}
@@ -284,7 +284,7 @@ void ZonePath_SetActive(const std::vector<ZonePathNode>& zonePathData, bool trav
 
 	s_travelToActive = travel;
 	s_findNextPath = travel;
-	s_activeZonePath = zonePathData;
+	s_activeZonePathRequest = zonePathData;
 
 	if (ActivateNextPath())
 	{
@@ -310,20 +310,27 @@ static void UpdateForZoneChange()
 	s_currentZone = pWorldData->GetZoneBaseId(pLocalPlayer->GetZoneID());
 
 	// If zone path is active then update it.
-	if (!s_activeZonePath.empty())
+	if (!s_activeZonePathRequest.zonePath.empty())
 	{
-		EQZoneIndex destZone = s_activeZonePath.back().zoneId;
+		EQZoneIndex destZone = s_activeZonePathRequest.zonePath.back().zoneId;
 		if (destZone == s_currentZone)
 		{
-			SPDLOG_INFO("Arrived at our destination: \ay{}\ax!", GetFullZone(destZone));
+			std::string targetQuery = std::move(s_activeZonePathRequest.targetQuery);
+
+			SPDLOG_INFO("Arrived at our destination zone: \ay{}\ax!", GetFullZone(destZone));
 			StopTravelTo(true);
+
+			if (!targetQuery.empty())
+			{
+				FindWindow_FindLocation(targetQuery, false);
+			}
 		}
 		else
 		{
 			// Update the path if we took a wrong turn
 
 			bool found = false;
-			for (const ZonePathNode& pathData : s_activeZonePath)
+			for (const ZonePathNode& pathData : s_activeZonePathRequest.zonePath)
 			{
 				if (pathData.zoneId == s_currentZone)
 				{
@@ -340,7 +347,10 @@ static void UpdateForZoneChange()
 				{
 					SPDLOG_WARN("Path generation failed: {}", message);
 				}
-				ZonePath_SetActive(newPath, s_travelToActive);
+				auto newRequest = s_activeZonePathRequest;
+				newRequest.zonePath = newPath;
+
+				ZonePath_SetActive(newRequest, s_travelToActive);
 			}
 		}
 
@@ -380,7 +390,7 @@ void ZonePath_Stop()
 {
 	ZoneGuideManagerClient& zoneGuide = ZoneGuideManagerClient::Instance();
 
-	bool isActive = s_travelToActive || !s_activeZonePath.empty() || !zoneGuide.activePath.IsEmpty();
+	bool isActive = s_travelToActive || !s_activeZonePathRequest.zonePath.empty() || !zoneGuide.activePath.IsEmpty();
 
 	if (isActive)
 	{

@@ -70,6 +70,9 @@ public:
 	void SetSilentGroupCommands(bool silent);
 	bool IsSilentGroupCommands() const { return m_silentGroupCommands; }
 
+	void SetVerboseMessages(bool verbose);
+	bool IsVerboseMEssages() const { return m_verboseMessages; }
+
 	// transfer types
 	void RefreshTransferTypes();
 	bool IsSupportedTransferType(int transferTypeIndex) const;

@@ -59,7 +59,7 @@ public:
 	ZoneConnections(const std::string& configDirectory);
 	~ZoneConnections();
 
-	const std::string& GetConfigDir() const { return m_configDirectory; }
+	const std::string& GetConfigDir() const { return m_easyfindDir; }
 
 	void Load();
 	void LoadFindableLocations();
@@ -75,7 +75,7 @@ public:
 	void Pulse();
 
 private:
-	std::string m_configDirectory;
+	std::string m_easyfindDir;
 	YAML::Node m_zoneConnectionsConfig;
 
 	bool m_transferTypesLoaded = false;

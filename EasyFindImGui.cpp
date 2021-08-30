@@ -599,23 +599,73 @@ static void DrawEasyFindZonePathGeneration()
 
 		if (ImGui::Button("Set Active"))
 		{
-			ZonePath_SetActive(s_zonePathTest, false);
+			ZonePathRequest req;
+			req.zonePath = s_zonePathTest;
+
+			ZonePath_SetActive(req, false);
 		}
+		ImGui::SameLine();
 		if (ImGui::Button("Travel"))
 		{
-			ZonePath_SetActive(s_zonePathTest, true);
+			ZonePathRequest req;
+			req.zonePath = s_zonePathTest;
+
+			ZonePath_SetActive(req, true);
 		}
 	}
 }
 
+void DrawAboutPanel()
+{
+	ImGui::PushFont(imgui::LargeTextFont);
+	ImGui::TextColored(MQColor(255, 255, 0).ToImColor(), "About");
+	ImGui::Separator();
+	ImGui::PopFont();
+
+	ImGui::TextWrapped("EasyFind is currently a BETA version.");
+	ImGui::PushStyleColor(ImGuiCol_Text, MQColor(255, 255, 0).ToImU32());
+	ImGui::TextWrapped("There may be some bugs or breaking changes in the future! Documentation is a work in progress and has not been completed.");
+	ImGui::PopStyleColor();
+
+	ImGui::NewLine();
+	ImGui::TextWrapped(
+		"EasyFind is a plugin that helps get you around EverQuest. The heavy lifting and actual "
+		"character movement is provided by the Nav plugin. EasyFind simply tells it where to go.\n"
+		"\n"
+		"EasyFind provides two main categories of functionality:\n"
+		"    1. Finding locations in the current zone.\n"
+		"    2. Navigating to other zones.\n"
+		"\n"
+		"You can interact with this plugin in the following ways:\n"
+		"    * Ctrl+click on items in the Find window (opens with Ctrl+F by default)\n"
+		"    * The /easyfind command - find locations in the current zone\n"
+		"    * The /travelto command - travel to another zone\n"
+		"    * Other tabs in this window\n"
+		"\n"
+		"You can also access settings for EasyFind through /mqsettings\n"
+		"\n"
+		"EasyFind uses the Find window to find locations in the current zone. This list can be "
+		"augmented by modifying resources/EasyFind/ZoneConnections.yaml. Sometimes existing locations "
+		"in the find window do not have enough information (or the information is inaccurate) and edits need "
+		"to be made to make them findable.\n\n"
+		"EasyFind uses the Zone Guide to find connections between zones, so that it can plot a course with /travelto. "
+		"Sometimes these connections are not reliable, so again we use ZoneConnections.yaml to fill in the blanks. "
+		"We use this yaml file for teleport NPCs because the Zone Guide and find window doesn't provide any information "
+		"about them, so if they are not in the yaml file, they will not be usable.\n"
+		"\n"
+		"Documentation on editing the ZoneConnections.yaml file is forthcoming. For now, hopefully it provides "
+		"enough examples to get started.\n\n"
+	);
+
+	ImGui::PushStyleColor(ImGuiCol_Text, MQColor(255, 255, 0).ToImU32());
+	ImGui::TextWrapped(
+		"For additional information on commands, run /easyfind help");
+	ImGui::PopStyleColor();
+
+}
+
 void DrawEasyFindSettingsPanel()
 {
-	if (!ImGui::BeginChild("##SettingsPanel"))
-	{
-		ImGui::EndChild();
-		return;
-	}
-
 	const ZoneGuideManagerClient& mgr = ZoneGuideManagerClient::Instance();
 
 	//----------------------------------------------------------------------------
@@ -696,6 +746,12 @@ void DrawEasyFindSettingsPanel()
 	bool silentGroupCommands = g_configuration->IsSilentGroupCommands();
 	if (ImGui::Checkbox("Silent Group Commands", &silentGroupCommands))
 		g_configuration->SetSilentGroupCommands(silentGroupCommands);
+	HelpLabel("If checked, eqbc and dannet commands will be squelched.");
+
+	bool verboseMessages = g_configuration->IsVerboseMessages();
+	if (ImGui::Checkbox("Verbose status messages", &verboseMessages))
+		g_configuration->SetVerboseMessages(verboseMessages);
+	HelpLabel("If checked, some messages will contain additional status information");
 
 	ImGui::NewLine();
 	ImGui::Text("Colors:");
@@ -817,8 +873,6 @@ void DrawEasyFindSettingsPanel()
 	{
 		ImGui::Text("Zone Connections have not been loaded. Come back once in game.");
 	}
-
-	ImGui::EndChild();
 }
 
 static void DrawEasyFindSettingsPanel_MQSettings()
@@ -881,14 +935,25 @@ void ImGui_OnUpdate()
 
 		if (ImGui::BeginTabBar("EasyFindTabBar", ImGuiTabBarFlags_None))
 		{
-			if (ImGui::BeginTabItem("Welcome"))
+			if (ImGui::BeginTabItem("About"))
 			{
+				if (ImGui::BeginChild("##AboutPanel"))
+				{
+					DrawAboutPanel();
+					ImGui::EndChild();
+				}
+
 				ImGui::EndTabItem();
 			}
 
 			if (ImGui::BeginTabItem("Settings"))
 			{
-				DrawEasyFindSettingsPanel();
+				if (ImGui::BeginChild("##SettingsPanel"))
+				{
+					DrawEasyFindSettingsPanel();
+					ImGui::EndChild();
+				}
+
 				ImGui::EndTabItem();
 			}
 

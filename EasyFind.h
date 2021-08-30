@@ -110,8 +110,20 @@ struct ZonePathNode {
 		: zoneId(data.zoneId), transferTypeIndex(data.transferTypeIndex) {}
 };
 
+struct ZonePathRequest
+{
+	std::vector<ZonePathNode> zonePath;
+	std::string targetQuery;
+
+	void clear()
+	{
+		zonePath.clear();
+		targetQuery.clear();
+	}
+};
+
 std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneIndex toZone, std::string& outputMessage);
-void ZonePath_SetActive(const std::vector<ZonePathNode>& zonePathData, bool travel);
+void ZonePath_SetActive(const ZonePathRequest& zonePathData, bool travel);
 void ZonePath_OnPulse();
 void ZonePath_NavCanceled(bool message);
 void ZonePath_FollowActive();

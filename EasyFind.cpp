@@ -6,9 +6,9 @@
 #include "plugins/lua/LuaInterface.h"
 
 PreSetup("MQ2EasyFind");
-PLUGIN_VERSION(0.7);
+PLUGIN_VERSION(0.8);
 
-#define EASYFIND_PLUGIN_VERSION "0.7.1"
+#define EASYFIND_PLUGIN_VERSION "0.8.0"
 
 static mq::lua::LuaPluginInterface* s_lua = nullptr;
 
@@ -146,20 +146,24 @@ void ShowHelp()
 {
 	WriteChatf(PLUGIN_MSG "EasyFind Usage:");
 	WriteChatf(PLUGIN_MSG "\ag/easyfind \ao[search term]");
-	WriteChatf(PLUGIN_MSG "\ag/easyfind \aygroup\ax \ao[search term]");
 	WriteChatf(PLUGIN_MSG "    Searches the Find Window for the given \ao[search term]\ax, either exact or partial match. If found, begins navigation. "
-		"\ao[search term]\ax may also be a zone shortname. In this case, the closest zone connection matching for that zone will be found. "
-		"If \aggroup\ax is specified, the command will attempt to navigate the whole group.");
+		"\ao[search term]\ax may also be a zone shortname. In this case, the closest zone connection matching for that zone will be found. ");
+	WriteChatf(PLUGIN_MSG "\ag/easyfind \aygroup\ax \ao[command]");
+	WriteChatf(PLUGIN_MSG, "    Broadcasts the command to the group, using the configured group plugin.");
 	WriteChatf(PLUGIN_MSG "\ag/easyfind \aystop\aw - Stops any active easyfind.");
 	WriteChatf(PLUGIN_MSG "\ag/easyfind \ayreload\aw - Reload zone connections from easyfind folder: \ay%s", g_zoneConnections->GetConfigDir().c_str());
 	WriteChatf(PLUGIN_MSG "\ag/easyfind \ayui\aw - Toggle EasyFind ui");
 	WriteChatf(PLUGIN_MSG "\ag/easyfind \aymigrate\aw - Migrate MQ2EasyFind.ini from old MQ2EasyFind to new format");
+	WriteChatf(PLUGIN_MSG "\ag/easyfind \aynav \ao[nav command]\aw - Find using a nav command of find window.");
 
 	WriteChatf(PLUGIN_MSG "");
 	WriteChatf(PLUGIN_MSG "\ag/travelto \ao[zonename]");
-	WriteChatf(PLUGIN_MSG "\ag/travelto \aygroup\ax \ao[zonename]");
-	WriteChatf(PLUGIN_MSG "    Find a route to the specified \ao[zonename]\ax (short or long) and then follow it. "
-		"If \aggroup\ax is specified, the command will attempt to navigate the whole group.");
+	WriteChatf(PLUGIN_MSG "    Find a route to the specified \ao[zonename]\ax (short or long) and then follow it.");
+	WriteChatf(PLUGIN_MSG "\ag/travelto \ao[zonename] \ay@\ax \ao[easyfind command]\ax");
+	WriteChatf(PLUGIN_MSG "    Upon arrival in \ao[zonename]\ax, execute \ao[easyfind command]\ax");
+	WriteChatf(PLUGIN_MSG "    Ex: /travelto poknowledge @ Dogle Pitt");
+	WriteChatf(PLUGIN_MSG "\ag/travelto \aygroup\ax \ao[command]");
+	WriteChatf("    Broadcasts the command to the group, using the configured group plugin.");
 	WriteChatf(PLUGIN_MSG "\ag/travelto \ayactivate\aw - If an existing zone path is active (created by the zone guide), "
 		"activate that path with /travelto");
 	WriteChatf(PLUGIN_MSG "\ag/travelto \aystop\aw - Stops an active /travelto");
@@ -180,13 +184,18 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 	if (ci_equals(szLine, "migrate"))
 	{
 		g_zoneConnections->MigrateIniData();
-		// TODO: Save/Reload?
 		return;
 	}
 
 	if (ci_equals(szLine, "reload"))
 	{
 		g_zoneConnections->ReloadFindableLocations();
+		return;
+	}
+
+	if (ci_equals(szLine, "reloadsettings"))
+	{
+		g_configuration->ReloadSettings();
 		return;
 	}
 
@@ -272,10 +281,24 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
-	EQZoneInfo* pTargetZone = pWorldData->GetZone(GetZoneID(szLine));
+	// Extract target query if provided
+	std::string command = szLine;
+	std::string query;
+
+	size_t pos = command.find_first_of("@");
+	if (pos != std::string::npos)
+	{
+		query = command.substr(pos + 1);
+		command = command.substr(0, pos);
+
+		trim(command);
+		trim(query);
+	}
+
+	EQZoneInfo* pTargetZone = pWorldData->GetZone(GetZoneID(command.c_str()));
 	if (!pTargetZone)
 	{
-		SPDLOG_ERROR("Invalid zone: {}", szLine);
+		SPDLOG_ERROR("Invalid zone: {}", command);
 		return;
 	}
 
@@ -294,9 +317,16 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
-	SPDLOG_INFO("\aoTraveling to: \ag{}", pTargetZone->LongName);
+	if (query.empty())
+		SPDLOG_INFO("\aoTraveling to: \ag{}", pTargetZone->LongName);
+	else
+		SPDLOG_INFO("\aoTraveling to: \ag{}\ao at \ay{}", pTargetZone->LongName, query);
 
-	ZonePath_SetActive(path, true);
+	ZonePathRequest request;
+	request.zonePath = std::move(path);
+	request.targetQuery = std::move(query);
+
+	ZonePath_SetActive(request, true);
 }
 
 PLUGIN_API void InitializePlugin()

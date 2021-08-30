@@ -3,12 +3,15 @@
 #include "EasyFindConfiguration.h"
 #include "EasyFindZoneConnections.h"
 
+#include <fstream>
+
 namespace fs = std::filesystem;
 
 const char* s_luaTranslocatorCode = R"(-- Hail translocator and say keyword
 local spawn = mq.TLO.NearestSpawn('npc ' .. location.spawnName)
 if spawn() ~= nil then
 	spawn.DoTarget()
+	mq.cmd("/makemevisible")
 	mq.delay(500)
 	mq.cmd("/hail")
 	mq.delay(1200)
@@ -221,13 +224,13 @@ bool ParsedFindableLocation::CheckRequirements() const
 	return true;
 }
 
-ZoneConnections::ZoneConnections(const std::string& configDirectory)
-	: m_configDirectory(configDirectory)
+ZoneConnections::ZoneConnections(const std::string& easyfindDirectory)
+	: m_easyfindDir(easyfindDirectory)
 {
 	std::error_code ec;
-	if (!fs::is_directory(m_configDirectory, ec))
+	if (!fs::is_directory(m_easyfindDir, ec))
 	{
-		fs::create_directories(m_configDirectory, ec);
+		fs::create_directories(m_easyfindDir, ec);
 	}
 
 	Load();
@@ -239,10 +242,9 @@ ZoneConnections::~ZoneConnections()
 
 void ZoneConnections::Load()
 {
-	std::string configFile = m_configDirectory + "/ZoneConnections.yaml";
+	std::string configFile = (fs::path(m_easyfindDir) / "ZoneConnections.yaml").string();
 	try
 	{
-		// FIXME
 		m_zoneConnectionsConfig = YAML::LoadFile(configFile);
 	}
 	catch (const YAML::ParserException& ex)
@@ -390,9 +392,11 @@ bool ZoneConnections::MigrateIniData()
 	int count = 0;
 	std::vector<std::string> sectionNames = GetPrivateProfileSections(iniFile);
 
+	YAML::Node migrated;
+
 	if (!sectionNames.empty())
 	{
-		YAML::Node findLocations = m_zoneConnectionsConfig["FindLocations"];
+		YAML::Node findLocations = migrated["FindLocations"];
 		for (const std::string& sectionName : sectionNames)
 		{
 			std::string zoneShortName = sectionName;
@@ -505,10 +509,34 @@ bool ZoneConnections::MigrateIniData()
 		}
 	}
 
-	if (count > 0)
+	std::string filename = (fs::path(m_easyfindDir) / "Migrated.yaml").string();
+	try
 	{
-		SPDLOG_INFO("Migrated {} zone connections from MQ2EasyFind.ini", count);
+		std::fstream file(filename, std::ios::out);
+
+		if (!migrated.IsNull())
+		{
+			YAML::Emitter y_out;
+			y_out.SetIndent(4);
+			y_out.SetFloatPrecision(2);
+			y_out.SetDoublePrecision(2);
+			y_out << migrated;
+
+			file << y_out.c_str();
+
+			if (count > 0)
+			{
+				SPDLOG_INFO("Migrated {} zone connections from MQ2EasyFind.ini to {}", count, filename);
+				SPDLOG_INFO("Review this file and copy anything you want into ZoneConnections.yaml");
+			}
+		}
+
 	}
+	catch (const std::exception&)
+	{
+		SPDLOG_ERROR("Failed to write settings file: {}", filename);
+	}
+
 	return true;
 }
 
