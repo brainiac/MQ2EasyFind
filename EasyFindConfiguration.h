@@ -71,7 +71,7 @@ public:
 	bool IsSilentGroupCommands() const { return m_silentGroupCommands; }
 
 	void SetVerboseMessages(bool verbose);
-	bool IsVerboseMEssages() const { return m_verboseMessages; }
+	bool IsVerboseMessages() const { return m_verboseMessages; }
 
 	// transfer types
 	void RefreshTransferTypes();
@@ -115,6 +115,7 @@ private:
 	bool m_distanceColumnEnabled = true;
 	bool m_coloredFindWindowEnabled = true;
 	bool m_silentGroupCommands = true;
+	bool m_verboseMessages = false;
 };
 
 extern EasyFindConfiguration* g_configuration;
