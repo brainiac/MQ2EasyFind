@@ -89,6 +89,13 @@ int CFindLocationWndOverride::OnProcessFrame()
 			noneLabel->SetVisible(false);
 		}
 	}
+	else if (!didFindRequest)
+	{
+		// Make sure that if data hasn't been requested, that we trigger the request. This
+		// normally happens on zone and when the window is about to be opened, which means
+		// that it doesn't happen on its own immediately after entering the game.
+		AboutToShow();
+	}
 
 	if (sm_customLocationsAdded && (!sm_queuedSearchTerm.empty() || sm_queuedZoneId != 0))
 	{
