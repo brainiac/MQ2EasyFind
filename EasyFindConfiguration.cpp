@@ -585,7 +585,7 @@ ConfiguredGroupPlugin EasyFindConfiguration::GetActiveGroupPlugin() const
 
 void EasyFindConfiguration::HandlePluginChange(std::string_view pluginName, bool loaded)
 {
-	if (ci_equals(pluginName, "MQEQBC"))
+	if (ci_equals(pluginName, "MQ2EQBC"))
 	{
 		m_eqbcLoaded = loaded;
 	}
