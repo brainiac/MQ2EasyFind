@@ -940,8 +940,8 @@ void ImGui_OnUpdate()
 				if (ImGui::BeginChild("##AboutPanel"))
 				{
 					DrawAboutPanel();
-					ImGui::EndChild();
 				}
+				ImGui::EndChild();
 
 				ImGui::EndTabItem();
 			}
@@ -951,8 +951,8 @@ void ImGui_OnUpdate()
 				if (ImGui::BeginChild("##SettingsPanel"))
 				{
 					DrawEasyFindSettingsPanel();
-					ImGui::EndChild();
 				}
+				ImGui::EndChild();
 
 				ImGui::EndTabItem();
 			}
