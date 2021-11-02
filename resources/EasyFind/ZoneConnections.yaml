@@ -41,6 +41,10 @@ FindLocations:
         -   type: ZoneConnection
             switch: 2
             targetZone: resplendent
+    argath:
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: beastdomain
     arthicrex:
         -   type: ZoneConnection
             switch: 33
@@ -66,6 +70,10 @@ FindLocations:
         -   type: ZoneConnection
             switch: 14
             targetZone: kattacastrum
+    beastdomain:
+        -   type: ZoneConnection
+            switch: 2
+            targetZone: argath
     beholder:
         -   type: ZoneConnection
             location: [902, -1869, 1]
