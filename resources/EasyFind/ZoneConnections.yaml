@@ -7,15 +7,6 @@ FindLocations:
                     targetZone: natimbi
                 -   keyword: Nedaria's Landing
                     targetZone: nedaria
-    arelis:
-        -   type: ZoneConnection
-            switch: 2
-            targetZone: resplendent
-    acrylia:
-        -   type: ZoneConnection
-            name: Castle
-            switch: 16
-            targetZone: acrylia
     arcstone:
         -   type: ZoneConnection
             location: [-228, 1610, 5.64]
@@ -499,7 +490,6 @@ FindLocations:
             requiredAchievement: 500980300
         -   type: ZoneConnection
             targetZone: neighborhood
-            name: Sunrise Hills
             switch: OBJ_IRONGATESWITCH
             script: |
                 -- Wait for window to open and click the button on the right
@@ -580,7 +570,6 @@ FindLocations:
             targetZone: nadox
     hollowshade:
         -   type: ZoneConnection
-            name: Shar Vahl
             location: [1180, 3270, 111.97]
             targetZone: sharvahl
     housegarden:
@@ -654,6 +643,10 @@ FindLocations:
             location: [-105.19, 0.69, 25.45]
             switch: 122
             targetZone: tempesttemple
+    kodtaz:
+        -   type: ZoneConnection
+            location: [-638, 2690, -405]
+            targetZone: qvic
     lakeofillomen:
         -   type: ZoneConnection
             location: [4325, 1190, 47]
@@ -669,7 +662,6 @@ FindLocations:
     lceanium:
         -   type: ZoneConnection
             targetZone: nexus
-            name: 'Nexus'
             location: [1340.52, 1431.23, -57.15]
             script: |
                 -- FIXME
@@ -686,12 +678,10 @@ FindLocations:
             location: [2185, -1199, 0]
             targetZone: gfaydark
         -   type: ZoneConnection
-            name: Unearthed Grave
             location: [-105.60, 3866.93, -38.12]
             switch: 10
             targetZone: mmcj
         -   type: ZoneConnection
-            name: Crypt
             location: [-773.90, 3841.95, -0.84]
             targetZone: mmca
     lichencreep:
@@ -713,6 +703,13 @@ FindLocations:
         -   type: ZoneConnection
             location: [-404, -2331, -156]
             targetZone: umbral
+    mechanotus:
+        -   type: ZoneConnection
+            switch: 2
+            targetZone: gyrospirez
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: gyrospireb
     mira:
         -   type: ZoneConnection
             switch: 1
@@ -803,26 +800,10 @@ FindLocations:
             location: [544.58, 268.65, 7.76]
             switch: 6
             targetZone: lfaydark
-    thalassius:
-        -   type: ZoneConnection
-            switch: 7
-            targetZone: kattacastrum
-    umbral:
-        -   type: ZoneConnection
-            location: [-1901.99, -742.78, 152.93]
-            switch: 0
-            targetZone: vexthal
     mseru:
         -   type: ZoneConnection
             location: [2200, -1200, 165]
             targetZone: letalis
-    mechanotus:
-        -   type: ZoneConnection
-            switch: 2
-            targetZone: gyrospirez
-        -   type: ZoneConnection
-            switch: 1
-            targetZone: gyrospireb
     nadox:
         -   type: ZoneConnection
             location: [-1703.57, 1550.38, -107.52]
@@ -861,7 +842,6 @@ FindLocations:
     nexus:
         -   type: ZoneConnection
             targetZone: lceanium
-            name: 'Lceanium'
             location: [-48.76, -12.27, -30.96]
             script: |
                 --FIXME
@@ -878,6 +858,10 @@ FindLocations:
         -   type: ZoneConnection
             switch: 134
             targetZone: guildlobby
+    neriakc:
+        -   type: ZoneConnection
+            location: [909, -1770, -70]
+            targetZone: neriakd
     netherbian:
         -   type: ZoneConnection
             location: [-735, -53, 2]
@@ -887,10 +871,6 @@ FindLocations:
             location: [2000, -435, -62]
             targetZone: nexus
             identifier: 1
-    neriakc:
-        -   type: ZoneConnection
-            location: [909, -1770, -70]
-            targetZone: neriakd
     northkarana:
         -   type: ZoneConnection
             location: [20, -3200, -33.59]
@@ -905,7 +885,6 @@ FindLocations:
             targetZone: southro
             identifier: 1
         -   type: ZoneConnection
-            name: 'Sand Pit'
             location: [5563.95, -1193.54, 23.44]
             targetZone: taka
             switch: 4
@@ -989,10 +968,6 @@ FindLocations:
                 mq.cmd('/keypress forward hold')
                 mq.delay(1000)
                 mq.cmd('/keypress forward')
-        -   type: Translocator
-            name: Priest of Discord
-            keyword: wish to go to Discord
-            targetZone: draniksscar
     pellucid:
         -   type: ZoneConnection
             switch: 3
@@ -1000,6 +975,14 @@ FindLocations:
     podisease:
         -   type: ZoneConnection
             switch: 1
+            targetZone: potranquility
+    poeartha:
+        -   type: ZoneConnection
+            location: [142, -1167, 71]
+            targetZone: poearthb
+            identifier: 3
+        -   type: ZoneConnection
+            location: [254.91, -1167, 71]
             targetZone: potranquility
     pohealth:
         -   type: ZoneConnection
@@ -1118,7 +1101,6 @@ FindLocations:
             keyword: send
             expansion: Seeds of Destruction
         -   type: ZoneConnection
-            name: The Void
             location: [-26.92, 78.15, 8.72]
             switch: 2
             targetZone: thevoida
@@ -1174,14 +1156,6 @@ FindLocations:
         -   type: ZoneConnection
             location: [ -1335, 2192, -714]
             targetZone: poeartha
-    poeartha:
-        -   type: ZoneConnection
-            location: [142, -1167, 71]
-            targetZone: poearthb
-            identifier: 3
-        -   type: ZoneConnection
-            location: [254.91, -1167, 71]
-            targetZone: potranquility
     provinggrounds:
         -   type: ZoneConnection
             location: [-2454.6499, -839.01, -309.77]
@@ -1240,6 +1214,10 @@ FindLocations:
             location: [-450, 250, -4]
             targetZone: qeynos2
             identifier: 1
+    qvic:
+        -   type: ZoneConnection
+            location: [766, -2570, -649]
+            targetZone: kodtaz
     rathechamber:
         -   type: ZoneConnection
             location: [89.53, 33.60, -25.20]
@@ -1321,13 +1299,16 @@ FindLocations:
         -   type: ZoneConnection
             location: [281.88, 133.17, 5.06]
             targetZone: mistythicket
+    scorchedwoods:
+        -   type: ZoneConnection
+            location: [-3129, -1235, -292]
+            targetZone: lceanium
     sharvahl:
         -   type: ZoneConnection
             location: [1680, -470, -212.24]
             targetZone: hollowshade
     skyshrinetwo:
         -   type: ZoneConnection
-            name: Cobalt Scar
             location: [105.09, 267.85, 3.12]
             switch: 28
             targetZone: cobaltscartwo
@@ -1361,10 +1342,10 @@ FindLocations:
             name: '#Translocator Tradil'
             keyword: Travel to Timorous Deep
             targetZone: timorous
-    scorchedwoods:
+    sseru:
         -   type: ZoneConnection
-            location: [-3129, -1235, -292]
-            targetZone: lceanium
+            location: [1150.54, 425.00, 80]
+            targetZone: Marus Seru
     steamfontmnts:
         -   type: ZoneConnection
             location: [-1085, -1080, -15]
@@ -1466,6 +1447,14 @@ FindLocations:
             location: [634.44, -145.66, -13.25]
             switch: 59
             targetZone: northro
+    tempesttemple:
+        -   type: ZoneConnection
+            switch: 3
+            targetZone: endlesscaverns
+    thalassius:
+        -   type: ZoneConnection
+            switch: 7
+            targetZone: kattacastrum
     thevoida:
         -   type: ZoneConnection
             location: [-181.03, -91.57, 27.76]
@@ -1704,10 +1693,11 @@ FindLocations:
                     mq.TLO.Window('LargeDialogWindow/LDW_YesButton').LeftMouseUp()
                 end
             targetZone: crescent
-    tempesttemple:
+    umbral:
         -   type: ZoneConnection
-            switch: 3
-            targetZone: endlesscaverns
+            location: [-1901.99, -742.78, 152.93]
+            switch: 0
+            targetZone: vexthal
     wallofslaughter:
         -   type: ZoneConnection
             location: [1979.28, -1702.54, 111.67]
@@ -1720,23 +1710,3 @@ FindLocations:
             location: [1640, -3970, 20]
             targetZone: fieldofbone
             identifier: 2
-    kodtaz:
-        -   type: ZoneConnection
-            location: [-638, 2690, -405]
-            targetZone: qvic
-    qcat:
-        -   type: ZoneConnection
-            location: [888.64, 216.91, -69.97]
-            identifier: 1
-            targetZone: qeynos2
-            script: |
-                mq.cmd('/keypress page_up hold')
-                mq.delay(2000)
-                mq.cmd('/keypress page_up')
-                mq.cmd('/keypress forward hold')
-                mq.delay(3000)
-                mq.cmd('/keypress forward')
-    qvic:
-        -   type: ZoneConnection
-            location: [766, -2570, -649]
-            targetZone: kodtaz
