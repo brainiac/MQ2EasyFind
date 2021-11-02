@@ -392,6 +392,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [-2335, 4280, -454.46]
             targetZone: burningwood
+        -   type: ZoneConnection
+            location: [5982.80, 1441.43, 472.04]
+            targetZone: overthere
+            identifier: 1
     fungalforest:
         -   type: ZoneConnection
             switch: 1
@@ -647,6 +651,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [-638, 2690, -405]
             targetZone: qvic
+        -   type: ZoneConnection
+            targetZone: natimbi
+            identifier: 3
+            switch: 5
     lakeofillomen:
         -   type: ZoneConnection
             location: [4325, 1190, 47]
@@ -804,6 +812,9 @@ FindLocations:
         -   type: ZoneConnection
             location: [2200, -1200, 165]
             targetZone: letalis
+        -   type: ZoneConnection
+            location: [-2143.81, -1095.26, -31.15]
+            targetZone: sseru
     nadox:
         -   type: ZoneConnection
             location: [-1703.57, 1550.38, -107.52]
@@ -816,6 +827,10 @@ FindLocations:
                     targetZone: abysmal
                 -   keyword: Nedaria's Landing
                     targetZone: nedaria
+        -   type: Translocator
+            name: '#Madronoa'
+            keyword: wish to travel
+            targetZone: qvic
     nedaria:
         -   type: Translocator
             name: Magus Wenla
@@ -992,6 +1007,7 @@ FindLocations:
     pojustice:
         -   type: ZoneConnection
             switch: 33
+            location: [0.48, 364.99, -5.00]
             targetZone: potranquility
     poknowledge:
         -   type: ZoneConnection
@@ -1113,14 +1129,18 @@ FindLocations:
             targetZone: potactics
         -   type: ZoneConnection
             switch: 80
+            location: [829, -687, -615]
             targetZone: poair
         -   type: ZoneConnection
+            location: [1903, -1110, -887]
             switch: 11
             targetZone: codecay
         -   type: ZoneConnection
+            location: [-1538.79, -11.18, -921.24]
             switch: 7
             targetZone: poinnovation
         -   type: ZoneConnection
+            location: [11.71, -610.53, -516.26]
             switch: 37
             targetZone: pojustice
         -   type: ZoneConnection
@@ -1132,9 +1152,11 @@ FindLocations:
             targetZone: pohealth
             expansion: The Broken Mirror
         -   type: ZoneConnection
+            location: [-650, 1186, -931]
             switch: 15
             targetZone: postorms
         -   type: ZoneConnection
+            location: [-2172.27, 1193.77, -909.04]
             switch: 17
             targetZone: potimea
         -   type: ZoneConnection
