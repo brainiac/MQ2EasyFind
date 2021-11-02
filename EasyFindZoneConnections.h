@@ -31,6 +31,7 @@ struct ParsedFindableLocation
 	std::string luaScript;
 	std::string luaScriptFile;
 	bool replace = true;
+	bool remove = false;
 	std::vector<ParsedTranslocatorDestination> translocatorDestinations;
 
 	EQExpansionOwned requiredExpansions = (EQExpansionOwned)0;
@@ -47,8 +48,13 @@ using ParsedFindableLocationsMap = std::map<std::string, std::vector<ParsedFinda
 
 struct EZZoneData
 {
+	EQZoneIndex zoneId;
+
 	// our custom list of findable locations
 	std::vector<ParsedFindableLocation> findableLocations;
+
+	// list of removed connections
+	std::vector<int> removedConnections;
 };
 
 using FindableLocationsMap = std::map<std::string, EZZoneData, ci_less>;
@@ -70,7 +76,7 @@ public:
 
 	bool MigrateIniData();
 
-	const std::vector<ParsedFindableLocation>& GetFindableLocations(EQZoneIndex zoneId) const;
+	const EZZoneData& GetZoneData(EQZoneIndex zoneId) const;
 
 	void Pulse();
 

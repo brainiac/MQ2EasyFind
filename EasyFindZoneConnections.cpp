@@ -138,6 +138,7 @@ namespace YAML
 				data.zoneId = (EQZoneIndex)zoneId;
 				data.zoneIdentifier = node["identifier"].as<int>(0);
 				data.replace = node["replace"].as<bool>(true);
+				data.remove = node["remove"].as<bool>(false);
 				data.luaScript = node["script"].as<std::string>(std::string());
 				if (data.luaScript.empty())
 					data.luaScriptFile = node["scriptFile"].as<std::string>(std::string());
@@ -191,8 +192,11 @@ namespace YAML
 
 bool ParsedFindableLocation::IsZoneConnection() const
 {
+	if (remove)
+		return false;
 	if (zoneId != 0)
 		return true;
+
 	for (const auto& dest : translocatorDestinations)
 	{
 		if (dest.zoneId != 0)
@@ -294,7 +298,42 @@ void ZoneConnections::LoadFindableLocations()
 		{
 			EZZoneData& data = m_findableLocations[name];
 
+			data.zoneId = GetZoneID(name.c_str());
 			data.findableLocations = std::move(locations);
+
+			// move any "remove" entries to the removed connections list
+			data.removedConnections.clear();
+			data.findableLocations.erase(
+				std::remove_if(data.findableLocations.begin(), data.findableLocations.end(),
+					[&](const ParsedFindableLocation& pfl)
+				{
+					if (pfl.remove)
+					{
+						if (pfl.zoneId != 0)
+							data.removedConnections.push_back(pfl.zoneId);
+
+						return true;
+					}
+
+					return false;
+				}), data.findableLocations.end());
+
+			// Load any removed zones into the zone guide.
+			if (pZoneGuideWnd && !data.removedConnections.empty())
+			{
+				ZoneGuideZone* zoneGuideZone = ZoneGuideManagerClient::Instance().GetZone(data.zoneId);
+				if (zoneGuideZone)
+				{
+					for (int destZoneId : data.removedConnections)
+					{
+						for (ZoneGuideConnection& connection : zoneGuideZone->zoneConnections)
+						{
+							if (connection.destZoneId == destZoneId)
+								connection.disabled = true;
+						}
+					}
+				}
+			}
 		}
 	}
 	catch (const YAML::Exception& ex)
@@ -364,18 +403,18 @@ void ZoneConnections::CreateFindableLocations(FindableLocations& findableLocatio
 	}
 }
 
-const std::vector<ParsedFindableLocation>& ZoneConnections::GetFindableLocations(EQZoneIndex zoneId) const
+const EZZoneData& ZoneConnections::GetZoneData(EQZoneIndex zoneId) const
 {
 	const char* zoneName = GetShortZone(zoneId);
 
 	auto iter = m_findableLocations.find(zoneName);
 	if (iter == m_findableLocations.end())
 	{
-		static std::vector<ParsedFindableLocation> empty;
+		static EZZoneData empty;
 		return empty;
 	}
 
-	return iter->second.findableLocations;
+	return iter->second;
 }
 
 bool ZoneConnections::MigrateIniData()

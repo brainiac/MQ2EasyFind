@@ -1100,6 +1100,9 @@ FindLocations:
             switch: 25
             targetZone: arena
             replace: false
+        -   type: ZoneConnection
+            targetZone: airplane
+            remove: true
     potimea:
         -   type: Translocator
             name: Herald of Druzzil Ro

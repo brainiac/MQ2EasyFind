@@ -123,6 +123,8 @@ std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneInde
 			break;
 		}
 
+		const EZZoneData& ezZoneData = g_zoneConnections->GetZoneData(currentZoneId);
+
 		if (ZoneGuideZone* currentZone = zoneMgr.GetZone(currentZoneId))
 		{
 			// Search the zone guide with modified parameters.
@@ -139,6 +141,10 @@ std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneInde
 						continue;
 				}
 
+				// Make sure we didn't remove this connection
+				if (std::find(ezZoneData.removedConnections.begin(), ezZoneData.removedConnections.end(), connection.destZoneId) != ezZoneData.removedConnections.end())
+					continue;
+
 				// Make sure that the transfer types are supported
 				if (g_configuration->IsDisabledTransferType(connection.transferTypeIndex))
 					continue;
@@ -149,8 +155,7 @@ std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneInde
 		}
 
 		// Search our own connections
-		const std::vector<ParsedFindableLocation>& myLocations = g_zoneConnections->GetFindableLocations(currentZoneId);
-		for (const ParsedFindableLocation& location : myLocations)
+		for (const ParsedFindableLocation& location : ezZoneData.findableLocations)
 		{
 			if (!location.IsZoneConnection())
 				continue;
