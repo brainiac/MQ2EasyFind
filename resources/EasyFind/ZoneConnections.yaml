@@ -204,6 +204,11 @@ FindLocations:
         -   type: ZoneConnection
             switch: 41
             targetZone: towerofrot
+    devastation:
+        -   type: ZoneConnection
+            switch: 1
+            location: [164, 1376, 53]
+            targetZone: freeporteast
     drachnidhive:
         -   type: ZoneConnection
             location: [283, 1108, 451]
@@ -377,6 +382,10 @@ FindLocations:
             name: '#Translocator Setikan'
             keyword: travel to Ocean of Tears
             targetZone: oceanoftears
+        -   type: ZoneConnection
+            location: [828, -709, -51]
+            switch: OBJ_SULLONZEK
+            targetZone: devastation
     freeportwest:
         -   type: ZoneConnection
             location: [290, -1730, -112]
