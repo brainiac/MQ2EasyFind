@@ -254,6 +254,10 @@ FindLocations:
             name: '#Deaen Greyforge'
             keyword: get on
             targetZone: northro
+    elddar:
+        -   type: ZoneConnection
+            switch: OBJ_TELEPORT
+            targetZone: takishruins
     emeraldjungle:
         -   type: ZoneConnection
             location: [-1967.99, 5400, 1]
@@ -1474,6 +1478,14 @@ FindLocations:
             location: [116.52, 633.40, 5.38]
             switch: 51
             targetZone: northro
+    takishruins:
+        -   type: ZoneConnection
+            switch: OBJ_STAGE_TELEPORT
+            targetZone: elddar
+        -   type: ZoneConnection
+            location: [257, -980, 61]
+            switch: OBJ_ROPE_SWITCH
+            targetZone: southro
     takj:
         -   type: ZoneConnection
             location: [634.44, -145.66, -13.25]
