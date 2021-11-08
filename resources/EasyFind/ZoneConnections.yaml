@@ -1413,6 +1413,7 @@ FindLocations:
     sunderock:
         -   type: ZoneConnection
             location: [-907, -1632, 215]
+            switch: 1
             targetZone: vergalid
     swampofnohope:
         -   type: ZoneConnection
@@ -1751,6 +1752,11 @@ FindLocations:
             location: [-1901.99, -742.78, 152.93]
             switch: 0
             targetZone: vexthal
+    vergalid:
+        -   type: ZoneConnection
+            location: [0.33, 22.77, 2.40]
+            switch: 1
+            targetZone: sunderock
     wallofslaughter:
         -   type: ZoneConnection
             location: [1979.28, -1702.54, 111.67]
