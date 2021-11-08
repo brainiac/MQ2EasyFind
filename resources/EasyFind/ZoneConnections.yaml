@@ -854,6 +854,9 @@ FindLocations:
                 -   keyword: South Ro
                     targetZone: southro
             expansion: Lost Dungeons of Norrath
+        -   type: ZoneConnection
+            location: [-199.16, -1868, 253.66]
+            targetZone: jaggedpine
     nexus:
         -   type: ZoneConnection
             targetZone: lceanium
@@ -1236,10 +1239,17 @@ FindLocations:
             location: [-450, 250, -4]
             targetZone: qeynos2
             identifier: 1
+    qrg:
+        -   type: ZoneConnection
+            targetZone: jaggedpine
+            switch: 3
     qvic:
         -   type: ZoneConnection
             location: [766, -2570, -649]
             targetZone: kodtaz
+        -   type: ZoneConnection
+            targetZone: natimbi
+            remove: true
     rathechamber:
         -   type: ZoneConnection
             location: [89.53, 33.60, -25.20]
