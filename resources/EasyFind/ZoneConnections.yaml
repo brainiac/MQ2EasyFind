@@ -648,7 +648,7 @@ FindLocations:
             targetZone: thalassius
         -   type: ZoneConnection
             switch: 27
-            targetZone: jewelofatiki
+            targetZone: atiiki
         -   type: ZoneConnection
             switch: 29
             targetZone: zhisza
