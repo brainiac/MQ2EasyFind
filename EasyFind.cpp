@@ -295,6 +295,9 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 		trim(query);
 	}
 
+	if (command.length() > 2 && command[0] == '"' && command[command.length() - 1] == '"')
+		command = command.substr(1, command.length() - 2);
+
 	EQZoneInfo* pTargetZone = pWorldData->GetZone(GetZoneID(command.c_str()));
 	if (!pTargetZone)
 	{
