@@ -226,6 +226,10 @@ FindLocations:
         -   type: ZoneConnection
             targetZone: steamfactory
             remove: true
+        -   type: ZoneConnection
+            location: [-3181, 345, 109]
+            switch: OBJ_MECH_LAUNCHER
+            targetZone: gnomemtn
     draniksscar:
         -   type: Translocator
             name: Elder Priest of Discord
