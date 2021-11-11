@@ -434,6 +434,11 @@ FindLocations:
             name: Nexus Scion
             keyword: journey to Luclin
             targetZone: nexus
+    gnomemtn:
+        -   type: Translocator
+            name: '#Ambassador Cogswold'
+            keyword: depart
+            targetZone: dragonscale
     greatdivide:
         -   type: ZoneConnection
             location: [-1754.30, -5138.47, 194.99]
