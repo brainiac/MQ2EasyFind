@@ -486,7 +486,7 @@ int CFindLocationWndOverride::WndNotification(CXWnd* sender, uint32_t message, v
 
 				// Try to perform the navigation. If we succeed, bail out. Otherwise trigger the
 				// navigation via player path.
-				if (PerformFindWindowNavigation(refId, groupNav))
+				if (PerformFindWindowNavigation(refId, selectedRow, groupNav))
 				{
 					Show(false);
 					return 0;
@@ -632,7 +632,7 @@ CVector3 CFindLocationWndOverride::GetReferencePosition(FindableReference* ref, 
 
 // Returns true if we handled the navigation here. Returns false if we couldn't do it
 // and that we should let the path get created so we can navigate to it.
-bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGroup)
+bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, int row, bool asGroup)
 {
 	if (!Navigation_IsInitialized())
 	{
@@ -731,7 +731,11 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 		{
 			// If we do this as a group, we execute via a command instead. This ensures that all
 			// members experience the same result (hopefully).
-			std::string command = fmt::format("/easyfind {}", locationName);
+
+			// Get the name of the connection as it is displayed in the UI
+			CXStr itemText = findLocationList->GetItemText(row, 1);
+
+			std::string command = fmt::format("/easyfind {}", std::string_view{ itemText });
 			DoGroupCommand(command, true);
 			return true;
 		}

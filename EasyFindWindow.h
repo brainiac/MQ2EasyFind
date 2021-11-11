@@ -46,7 +46,7 @@ public:
 
 	// Returns true if we handled the navigation here. Returns false if we couldn't do it
 	// and that we should let the path get created so we can navigate to it.
-	bool PerformFindWindowNavigation(int refId, bool asGroup);
+	bool PerformFindWindowNavigation(int refId, int row, bool asGroup);
 
 	bool IsCustomLocationsAdded() const { return sm_customLocationsAdded; }
 
