@@ -221,6 +221,7 @@ FindLocations:
     dragonscale:
         -   type: ZoneConnection
             switch: 6
+            location: [3734, -2383, 100]
             targetZone: mechanotus
     draniksscar:
         -   type: Translocator
