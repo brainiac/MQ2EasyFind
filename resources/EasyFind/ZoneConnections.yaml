@@ -557,6 +557,12 @@ FindLocations:
     gyrospireb:
         -   type: ZoneConnection
             switch: 2
+            location: [-748.37, -43.36, 4.19]
+            targetZone: mechanotus
+    gyrospirez:
+        -   type: ZoneConnection
+            switch: 2
+            location: [-749.25, -41.74, 4.24]
             targetZone: mechanotus
     hole:
         -   type: ZoneConnection
@@ -741,9 +747,11 @@ FindLocations:
     mechanotus:
         -   type: ZoneConnection
             switch: 2
+            location: [-121.09, -1673.32, 395.33]
             targetZone: gyrospirez
         -   type: ZoneConnection
             switch: 1
+            location: [-177, -1625, 400]
             targetZone: gyrospireb
     mira:
         -   type: ZoneConnection

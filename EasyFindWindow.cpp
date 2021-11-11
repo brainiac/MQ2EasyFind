@@ -646,14 +646,17 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 		return false;
 	}
 
+	auto type = ref->type;
+
 	const FindableLocation* customLocation = nullptr;
 	auto customIter = sm_customRefs.find(refId);
 	if (customIter != sm_customRefs.end())
 	{
 		customLocation = customIter->second.data;
+		type = customLocation->type;
 	}
 
-	switch (ref->type)
+	switch (type)
 	{
 	case FindLocation_Player:
 		// In the case that we are finding a spawn, then the index is actually the spawn id,
@@ -704,7 +707,7 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 		const FindZoneConnectionData& zoneConn = unfilteredZoneConnectionList[ref->index];
 
 		int32_t switchId = 0;
-		if (ref->type == FindLocation_Switch)
+		if (type == FindLocation_Switch)
 		{
 			switchId = zoneConn.id;
 		}
@@ -719,7 +722,7 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 			locationName.append(fmt::format(" - {}", zoneConn.zoneIdentifier));
 
 		EQSwitch* pSwitch = nullptr;
-		if (ref->type == FindLocation_Switch)
+		if (type == FindLocation_Switch)
 		{
 			pSwitch = pSwitchMgr->GetSwitchById(switchId);
 		}
@@ -736,7 +739,7 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 		FindLocationRequestState request;
 		request.location = *(glm::vec3*)&zoneConn.location;
 		request.switchID = switchId;
-		request.type = ref->type;
+		request.type = type;
 		request.zoneId = zoneConn.zoneId;
 
 		if (customLocation)
@@ -758,7 +761,7 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, bool asGro
 	}
 
 	default:
-		SPDLOG_ERROR("Cannot navigate to selection type: {}", ref->type);
+		SPDLOG_ERROR("Cannot navigate to selection type: {}", type);
 		break;
 	}
 
