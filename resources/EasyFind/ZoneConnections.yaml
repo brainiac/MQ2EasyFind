@@ -720,7 +720,11 @@ FindLocations:
     lopingplains:
         -   type: ZoneConnection
             switch: OBJ_DOOR_BLDCOURTYRD
+            location: [-1779.72, 99.70, 210.55]
             targetZone: bloodmoon
+        -   type: ZoneConnection
+            targetZone: dragonscale
+            remove: true
     maiden:
         -   type: ZoneConnection
             location: [-2290, 95, -160]
