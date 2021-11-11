@@ -223,6 +223,9 @@ FindLocations:
             switch: 6
             location: [3734, -2383, 100]
             targetZone: mechanotus
+        -   type: ZoneConnection
+            targetZone: steamfactory
+            remove: true
     draniksscar:
         -   type: Translocator
             name: Elder Priest of Discord
