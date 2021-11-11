@@ -208,9 +208,17 @@ bool ParsedFindableLocation::IsZoneConnection() const
 bool ParsedFindableLocation::CheckRequirements() const
 {
 	// check expansion. We only track the expansion num so convert to flags and check that its set.
-	if (requiredExpansions != 0 && pEverQuestInfo->bProgressionServer)
+	if (requiredExpansions != 0)
 	{
-		if ((pEverQuestInfo->ProgressionOpenExpansions & requiredExpansions) == 0)
+		// Check progression server flags
+		if (pEverQuestInfo->bProgressionServer)
+		{
+			if ((pEverQuestInfo->ProgressionOpenExpansions & requiredExpansions) == 0)
+				return false;
+		}
+
+		// Check account flags
+		if ((pLocalPC->ExpansionFlags & requiredExpansions) == 0)
 			return false;
 	}
 
