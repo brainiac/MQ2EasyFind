@@ -260,10 +260,13 @@ void CFindLocationWndOverride::AddCustomLocations(bool initial)
 				location.eqZoneConnectionData.subId = location.type == FindLocation_Location ? 0 : -1;
 				location.eqZoneConnectionData.type = location.type;
 
+				bool isSwitchRemoval = ci_equals(location.switchName, "none");
+				bool updatedFromSwitch = false;
+
 				// Search for an existing zone entry that matches this one.
-				for (FindZoneConnectionData& entry : unfilteredZoneConnectionList)
+				for (FindZoneConnectionData& eqEntry : unfilteredZoneConnectionList)
 				{
-					if (entry.zoneId == location.zoneId && entry.zoneIdentifier == location.zoneIdentifier)
+					if (eqEntry.zoneId == location.zoneId && eqEntry.zoneIdentifier == location.zoneIdentifier)
 					{
 						// Its a connection representing the same thing.
 						if (!location.replace)
@@ -274,19 +277,22 @@ void CFindLocationWndOverride::AddCustomLocations(bool initial)
 						// We replaced a switch with a location. Often times this just means we wanted to change the
 						// position where we click the switch, not remove the switch. Unless the configuration says
 						// switch: "none", then we just change the location only.
-						if (entry.type == FindLocation_Switch && location.eqZoneConnectionData.type == FindLocation_Location
+						if (!isSwitchRemoval
+							&& eqEntry.type == FindLocation_Switch
+							&& location.eqZoneConnectionData.type == FindLocation_Location
 							&& location.spawnName.empty())
 						{
-							if (!ci_equals(location.switchName, "none"))
-							{
-								location.eqZoneConnectionData.type = FindLocation_Switch;
-								location.eqZoneConnectionData.id = entry.id;
-							}
+							location.eqZoneConnectionData.type = FindLocation_Switch;
+							location.eqZoneConnectionData.id = eqEntry.id;
+
+							// set type to switch.
+							location.type = FindLocation_Switch;
+							updatedFromSwitch = true;
 						}
 					}
 				}
 
-				if (location.type == FindLocation_Switch)
+				if (location.type == FindLocation_Switch && !updatedFromSwitch)
 				{
 					if (!location.switchName.empty())
 					{
@@ -297,7 +303,7 @@ void CFindLocationWndOverride::AddCustomLocations(bool initial)
 							location.eqZoneConnectionData.id = pSwitch->ID;
 						}
 					}
-					else
+					else if (location.switchId != -1)
 					{
 						location.eqZoneConnectionData.id = location.switchId;
 					}
@@ -646,7 +652,7 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, int row, b
 		return false;
 	}
 
-	auto type = ref->type;
+	FindLocationType type = ref->type;
 
 	const FindableLocation* customLocation = nullptr;
 	auto customIter = sm_customRefs.find(refId);
