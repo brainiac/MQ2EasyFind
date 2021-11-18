@@ -94,6 +94,10 @@ FindLocations:
                 mq.cmd('/keypress forward hold')
                 mq.delay(3000)
                 mq.cmd('/keypress forward')
+    blackburrow:
+        -   type: ZoneConnection
+            targetZone: jaggedpine
+            switch: 35
     bloodfields:
         -   type: ZoneConnection
             location: [1965, 1900, -864]
@@ -1289,6 +1293,9 @@ FindLocations:
             location: [-450, 250, -4]
             targetZone: qeynos2
             identifier: 1
+        -   type: ZoneConnection
+            location: [5205, 84, -6]
+            targetZone: qrg
     qrg:
         -   type: ZoneConnection
             targetZone: jaggedpine
