@@ -1264,6 +1264,7 @@ FindLocations:
     provinggrounds:
         -   type: ZoneConnection
             location: [-2454.6499, -839.01, -309.77]
+            switch: CT_CRYSTAL
             targetZone: riftseekers
     qcat:
         -   type: ZoneConnection
