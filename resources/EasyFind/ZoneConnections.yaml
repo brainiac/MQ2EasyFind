@@ -65,6 +65,11 @@ FindLocations:
         -   type: ZoneConnection
             switch: 14
             targetZone: kattacastrum
+    basilica:
+        -   type: ZoneConnection
+            location: [1.14, 45.53, -20.30]
+            switch: 1
+            targetZone: shadowvalley
     beastdomain:
         -   type: ZoneConnection
             switch: 2
