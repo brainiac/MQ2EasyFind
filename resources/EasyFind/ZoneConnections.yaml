@@ -771,6 +771,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [-404, -2331, -156]
             targetZone: umbral
+    maidentwo:
+        -   type: ZoneConnection
+            location: [-1855, 53, -96]
+            targetZone: akhevatwo
     mechanotus:
         -   type: ZoneConnection
             switch: 2
