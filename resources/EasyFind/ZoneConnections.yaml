@@ -7,6 +7,10 @@ FindLocations:
                     targetZone: natimbi
                 -   keyword: Nedaria's Landing
                     targetZone: nedaria
+    akhevatwo:
+        -   type: ZoneConnection
+            location: [-1449.92, 125.33, 19]
+            targetZone: maidentwo
     arcstone:
         -   type: ZoneConnection
             location: [-228, 1610, 5.64]
