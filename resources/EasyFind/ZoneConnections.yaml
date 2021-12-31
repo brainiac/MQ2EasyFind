@@ -812,6 +812,11 @@ FindLocations:
         -   type: ZoneConnection
             switch: 13
             targetZone: everfrost
+    mistmoore:
+        -   type: ZoneConnection
+            location: [-243.779, 357.845, -149.34]
+            switch: 2
+            targetZone: bloodfalls
     mmca:
         -   type: ZoneConnection
             location: [-334.58, -598.29, 4.80]
