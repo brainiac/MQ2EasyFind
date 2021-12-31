@@ -119,6 +119,14 @@ FindLocations:
         -   type: ZoneConnection
             switch: 67
             targetZone: potranquility
+    brellsrest:
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: brellstemple
+    brellstemple:
+        -   type: ZoneConnection
+            switch: 12
+            targetZone: brellsrest
     broodlands:
         -   type: ZoneConnection
             location: [-1114.36, -1973.87, 8.71]
