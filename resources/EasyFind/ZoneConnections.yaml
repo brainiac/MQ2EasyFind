@@ -942,16 +942,28 @@ FindLocations:
             targetZone: lceanium
             location: [-48.76, -12.27, -30.96]
             script: |
-                --FIXME
-                mq.cmd.docommand('/makemevisible')
-                mq.cmdf('/target Kardador')
-                mq.cmdf('/say Spire Stone of Lceanium')
+                mq.cmd('/makemevisible')
+                mq.cmd('/target Kardador')
+                mq.cmd('/say Spire Stone of Lceanium')
                 mq.delay(2000)
                 if (mq.TLO.Cursor.Name() == "Spire Stone of Lceanium") then
-                    mq.cmd.autoinventory() 
-                    mq.cmd.nav('loc 0.69 -4.05 -30.24')
+                    mq.cmd('/autoinventory')
+                    mq.cmd('/nav loc 0.69 -4.05 -30.24')
                 end
             expansion: Empires of Kunark
+        -   type: ZoneConnection
+            targetZone: maidentwo
+            location: [-365.7, 64.8, -42.7]
+            script: |
+                mq.cmd('/makemevisible')
+                mq.cmd('/target a concerned shade')
+                mq.cmd('/say stones')
+                mq.delay(2000)
+                if (mq.TLO.Cursor.Name() == "Spire Stone of Maiden's Eye") then
+                    mq.cmd('/autoinventory')
+                    mq.cmd('/nav loc 0.50 -4.1 -30.25')
+                end
+            expansion: Terror of Luclin
     neighborhood:
         -   type: ZoneConnection
             switch: 134
