@@ -1110,6 +1110,10 @@ FindLocations:
             targetZone: everfrost
             replace: false
         -   type: ZoneConnection
+            switch: 17
+            targetZone: guildlobby
+            replace: false
+        -   type: ZoneConnection
             targetZone: feerrott2
             name: 'Feerrott: The Dream'
             switch: POKOGPORT500
