@@ -1823,7 +1823,7 @@ FindLocations:
             targetZone: sebilis
     tutorialb:
         -   type: ZoneConnection
-            location: [141.42, -180.70, 19.35]
+            location: [145.06, -187.19, 22.83]
             script: |
                 mq.delay(3000)
                 if mq.TLO.Window('LargeDialogWindow').Open() then

@@ -277,7 +277,7 @@ static bool ActivateNextPath()
 
 void ZonePath_SetActive(const ZonePathRequest& zonePathData, bool travel)
 {
-	ZonePathArray pathArray(zonePathData.zonePath.size());
+	ZonePathArray pathArray((int)zonePathData.zonePath.size());
 
 	for (const ZonePathNode& pathData : zonePathData.zonePath)
 	{

@@ -438,12 +438,12 @@ void EasyFindConfiguration::RefreshTransferTypes()
 	};
 
 	const ZoneGuideManagerClient& mgr = ZoneGuideManagerClient::Instance();
-	size_t numTransferTypes = mgr.transferTypes.size();
+	int numTransferTypes = (int)mgr.transferTypes.size();
 
 	// these things are hard-coded to disabled above because they always need
 	// extra information to make them work.
 	m_supportedTransferTypes.resize(numTransferTypes);
-	for (size_t i = 0; i < numTransferTypes; ++i)
+	for (int i = 0; i < numTransferTypes; ++i)
 	{
 		const ZoneGuideTransferType& transferType = mgr.transferTypes[i];
 		m_supportedTransferTypes[i] = true;
@@ -460,7 +460,7 @@ void EasyFindConfiguration::RefreshTransferTypes()
 
 	// These are a bit hit-and-miss and so we let the user decide.
 	m_disabledTransferTypes.resize(numTransferTypes);
-	for (size_t i = 0; i < numTransferTypes; ++i)
+	for (int i = 0; i < numTransferTypes; ++i)
 	{
 		const ZoneGuideTransferType& transferType = mgr.transferTypes[i];
 

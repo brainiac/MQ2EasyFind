@@ -482,7 +482,7 @@ int CFindLocationWndOverride::WndNotification(CXWnd* sender, uint32_t message, v
 	{
 		if (message == XWM_LCLICK)
 		{
-			int selectedRow = (int)data;
+			int selectedRow = (int)(uintptr_t)data;
 			int refId = (int)findLocationList->GetItemData(selectedRow);
 
 			// TODO: Configurable keybinds
@@ -516,7 +516,7 @@ int CFindLocationWndOverride::WndNotification(CXWnd* sender, uint32_t message, v
 		{
 			// CFindLocationWnd will proceed to override our sort with its own, so we'll just perform this
 			// operation in OnProcessFrame.
-			int colIndex = (int)data;
+			int colIndex = (int)(uintptr_t)data;
 			if (colIndex == sm_distanceColumn)
 			{
 				findLocationList->SetSortColumn(colIndex);
@@ -823,7 +823,7 @@ bool CFindLocationWndOverride::FindLocationByListIndex(int listIndex, bool group
 	s_performGroupCommandFind = group;
 
 	findLocationList->SetCurSel(listIndex);
-	findLocationList->ParentWndNotification(findLocationList, XWM_LCLICK, (void*)listIndex);
+	findLocationList->ParentWndNotification(findLocationList, XWM_LCLICK, (void*)(intptr_t)listIndex);
 
 	s_performCommandFind = false;
 	s_performGroupCommandFind = false;

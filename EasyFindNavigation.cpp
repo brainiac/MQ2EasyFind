@@ -113,7 +113,7 @@ void NavObserverCallback(nav::NavObserverEvent eventType, const nav::NavCommandS
 
 	SPDLOG_DEBUG("Nav Observer: event=\ag{}\ax tag=\ag{}\ax paused=\ag{}\ax destination=\ag({:.2f}, {:.2f}, {:.2f})\ax type=\ag{}\ax", eventName,
 		commandState.tag, commandState.paused, commandState.destination.x, commandState.destination.y, commandState.destination.z,
-		commandState.type);
+		static_cast<int>(commandState.type));
 
 	if (commandState.tag != "easyfind")
 		return;
