@@ -239,6 +239,14 @@ FindLocations:
         -   type: ZoneConnection
             location: [283, 1108, 451]
             targetZone: dreadspire
+    drachnidhive:
+        -   type: ZoneConnection
+            location: [283, 1108, 451]
+            targetZone: dreadspire
+        -   type: ZoneConnection
+            location: [22, 4, -6]
+            targetZone: westkorlach
+            identifier: 2
     dragonscale:
         -   type: ZoneConnection
             switch: 6
@@ -278,12 +286,16 @@ FindLocations:
             targetZone: beholder
     eastkorlach:
         -   type: ZoneConnection
-            location: [-1125, -1080, 264]
+            location: [-1136, -1065, 270]
             targetZone: corathus
             identifier: 1
         -   type: ZoneConnection
-            location: [-1318, 760, -17]
+            location: [-1568, 740, 70]
             targetZone: illsalin
+        -   type: ZoneConnection
+            location: [553, 898, -35]
+            targetZone: westkorlach
+            identifier: 2
     eastwastes:
         -   type: ZoneConnection
             location: [-1771.37, 6685, 198.47]
@@ -888,6 +900,10 @@ FindLocations:
             location: [544.58, 268.65, 7.76]
             switch: 6
             targetZone: lfaydark
+    moors:
+        -   type: ZoneConnection
+            location: [-1754, -886, 38]
+            targetZone: stonehive
     mseru:
         -   type: ZoneConnection
             location: [2200, -1200, 165]
@@ -1313,7 +1329,7 @@ FindLocations:
             targetZone: erudsxing
     qeynos2:
         -   type: ZoneConnection
-            location: [1392.50, 440.50, 4.37]
+            location: [1410.50, 440.50, 4.37]
             targetZone: qeytoqrg
             identifier: 1
         -   type: ZoneConnection
@@ -1439,6 +1455,11 @@ FindLocations:
         -   type: ZoneConnection
             location: [1680, -470, -212.24]
             targetZone: hollowshade
+    silyssar:
+        -   type: ZoneConnection
+            location: [1653, -273, -112]
+            switch: 1
+            targetZone: zhisza
     skyshrinetwo:
         -   type: ZoneConnection
             location: [105.09, 267.85, 3.12]
@@ -1856,3 +1877,9 @@ FindLocations:
             location: [1640, -3970, 20]
             targetZone: fieldofbone
             identifier: 2
+    westkorlach:
+        -   type: ZoneConnection
+            location: [-1578, -794, 362]
+            targetZone: drachnidhive
+            identifier: 1
+
