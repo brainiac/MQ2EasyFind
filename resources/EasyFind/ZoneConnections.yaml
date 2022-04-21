@@ -239,10 +239,6 @@ FindLocations:
         -   type: ZoneConnection
             location: [283, 1108, 451]
             targetZone: dreadspire
-    drachnidhive:
-        -   type: ZoneConnection
-            location: [283, 1108, 451]
-            targetZone: dreadspire
         -   type: ZoneConnection
             location: [22, 4, -6]
             targetZone: westkorlach
@@ -1083,7 +1079,7 @@ FindLocations:
             targetZone: charasis
         -   type: ZoneConnection
             location: [24, 2575, 21]
-            targetZone: skyfire
+            targetZone: skyfiretwo
     paineel:
         -   type: ZoneConnection
             location: [733.72, 333.33, -9.61]
