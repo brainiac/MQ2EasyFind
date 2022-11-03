@@ -79,7 +79,7 @@ int CFindLocationWndOverride::OnProcessFrame()
 	UpdateDistanceColumn();
 
 	// Ensure that we wait for spawns to be populated into the spawn map first.
-	if (zoneConnectionsRcvd && !sm_customLocationsAdded && gSpawnCount > 0)
+	if ((zoneConnectionsRcvd || g_configuration->IsIgnoreZoneConnectionDataEnabled()) && !sm_customLocationsAdded && gSpawnCount > 0)
 	{
 		AddCustomLocations(true);
 
