@@ -253,6 +253,7 @@ void EasyFindConfiguration::ResetSettings()
 	m_coloredFindWindowEnabled = true;
 	m_silentGroupCommands = true;
 	m_verboseMessages = false;
+	m_ignoreZoneConnectionDataEnabled = false;
 
 	m_configNode = YAML::Node();
 	SaveSettings();
@@ -286,6 +287,7 @@ void EasyFindConfiguration::LoadSettings()
 		m_distanceColumnEnabled = m_configNode["DistanceColumn"].as<bool>(true);
 		m_silentGroupCommands = m_configNode["SilentGroupCommands"].as<bool>(true);
 		m_verboseMessages = m_configNode["VerboseMessages"].as<bool>(false);
+		m_ignoreZoneConnectionDataEnabled = m_configNode["IgnoreZoneConnectionData"].as<bool>(false);
 	}
 	catch (const YAML::ParserException& ex)
 	{
@@ -399,6 +401,14 @@ void EasyFindConfiguration::SetVerboseMessages(bool verbose)
 {
 	m_verboseMessages = verbose;
 	m_configNode["VerboseMessages"] = verbose;
+
+	SaveSettings();
+}
+
+void EasyFindConfiguration::SetIgnoreZoneConnectionDataEnabled(bool ignore)
+{
+	m_ignoreZoneConnectionDataEnabled = ignore;
+	m_configNode["IgnoreZoneConnectionData"] = ignore;
 
 	SaveSettings();
 }

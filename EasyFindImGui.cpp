@@ -810,6 +810,25 @@ void DrawEasyFindSettingsPanel()
 	//----------------------------------------------------------------------------
 	ImGui::NewLine();
 	ImGui::PushFont(imgui::LargeTextFont);
+	ImGui::TextColored(MQColor(255, 255, 0).ToImColor(), "Ignore Zone Connection Data");
+	ImGui::Separator();
+	ImGui::PopFont();
+
+	ImGui::PushStyleColor(ImGuiCol_Text, MQColor(255, 255, 255, 128).ToImU32());
+	ImGui::TextWrapped("Emulated servers may not send zone connection data to the client. In order for EasyFind to continue "
+		"working, this option allows EasyFind to populate connections entirely from ZoneConnections.yaml.");
+	ImGui::PopStyleColor();
+
+	bool isIgnoreZoneConnectionDataEnabled = g_configuration->IsIgnoreZoneConnectionDataEnabled();
+
+	if (ImGui::Checkbox("Ignore Zone Connection Data", &isIgnoreZoneConnectionDataEnabled))
+	{
+		g_configuration->SetIgnoreZoneConnectionDataEnabled(isIgnoreZoneConnectionDataEnabled);
+	}
+
+	//----------------------------------------------------------------------------
+	ImGui::NewLine();
+	ImGui::PushFont(imgui::LargeTextFont);
 	ImGui::TextColored(MQColor(255, 255, 0).ToImColor(), "Zone Guide Transfer Types");
 	ImGui::Separator();
 	ImGui::PopFont();

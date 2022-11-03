@@ -70,6 +70,9 @@ public:
 	void SetVerboseMessages(bool verbose);
 	bool IsVerboseMessages() const { return m_verboseMessages; }
 
+	void SetIgnoreZoneConnectionDataEnabled(bool ignore);
+	bool IsIgnoreZoneConnectionDataEnabled() const { return m_ignoreZoneConnectionDataEnabled; }
+
 	// transfer types
 	void RefreshTransferTypes();
 	bool IsSupportedTransferType(int transferTypeIndex) const;
@@ -113,6 +116,7 @@ private:
 	bool m_coloredFindWindowEnabled = true;
 	bool m_silentGroupCommands = true;
 	bool m_verboseMessages = false;
+	bool m_ignoreZoneConnectionDataEnabled = false;
 };
 
 extern EasyFindConfiguration* g_configuration;
