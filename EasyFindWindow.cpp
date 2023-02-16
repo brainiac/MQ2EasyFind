@@ -771,7 +771,7 @@ bool CFindLocationWndOverride::PerformFindWindowNavigation(int refId, int row, b
 	}
 
 	default:
-		SPDLOG_ERROR("Cannot navigate to selection type: {}", type);
+		SPDLOG_ERROR("Cannot navigate to selection type: {}", static_cast<int>(type));
 		break;
 	}
 
