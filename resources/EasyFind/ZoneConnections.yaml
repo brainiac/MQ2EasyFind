@@ -1158,17 +1158,17 @@ FindLocations:
         -   type: ZoneConnection
             switch: 15
             targetZone: greatdivide
-            name: 'Great Divide'
+            name: 'The Great Divide'
             script: |
                 -- Wait for window to open and click the button on the right
-                mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                mq.delay('10s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
                 if mq.TLO.Window('LargeDialogWindow').Open() then
                     mq.TLO.Window('LargeDialogWindow/LDW_NoButton').LeftMouseUp()
                 end
         -   type: ZoneConnection
             switch: 15
             targetZone: greatdividetwo
-            name: 'ToV'
+            name: 'Great Divide: ToV'
             script: |
                 -- Wait for window to open and click the button on the left
                 mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
