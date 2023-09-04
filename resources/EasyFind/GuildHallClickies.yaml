@@ -3,7 +3,6 @@ Clickies:
      - zoneName: Abysmal Sea
        itemName: The Grozmok Stone
        menuText: 'Teleport to Abysmal Sea'
-       guildClickyCommand: abysmal
    akanon:
      - zoneName: Ak`Anon
        itemName: Shelf of Gnomish Spirits
@@ -69,6 +68,7 @@ Clickies:
      - zoneName: Feerrott (RoF)
        itemName: 'Ogrish Spit'
        menuText: 'Teleport: Feerrott, the Dream'
+       guildClickyCommand: feerrottb
    felwithea:
      - zoneName: South Felwithe
        itemName: 'Felwithe Candelabra'
@@ -302,6 +302,7 @@ Clickies:
      - zoneName: ""  
        itemName: "Steamfont Lava Lamp" 
        menuText: "Teleport to Steamfont Mountains"
+       guildClickyCommand: steamfont
      - zoneName: ""  
        itemName: "Fantastic Fuel Orb" 
        menuText: "Teleport to Steamfont Mountains"
@@ -352,14 +353,16 @@ Clickies:
        itemName: "Statue: Iksar Bust" 
        menuText: "Teleport to Trakanon's Teeth"
        guildClickyCommand: trak2
-   umbral:
-     - zoneName: ""
+   umbraltwo:
+     - zoneName: "Umbral Plains (ToV)"
        itemName: "Umbral Plains Scrying Bowl"
        menuText: "Teleport to Umbral Plains"
+       guildClickyCommand: umbral
    powar:
      - zoneName: "" 
        itemName: "Plane of War Spire" 
        menuText: "Teleport to The Plane of War"
+       guildClickyCommand: war
    warrens:
      - zoneName: "" 
        itemName: "King Gragnar's Throne" 

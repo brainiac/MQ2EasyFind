@@ -64,6 +64,7 @@
     <None Include="resources\EasyFind\ZoneConnections.yaml">
       <Filter>Resource Files\easyfind</Filter>
     </None>
+    <None Include="resources\EasyFind\GuildHallClickies.yaml" />
   </ItemGroup>
   <ItemGroup>
     <NASM Include="AssemblyFunctions64.asm">

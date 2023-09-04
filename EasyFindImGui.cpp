@@ -203,6 +203,13 @@ static void DrawGuildHallClickiesPanel()
 		{
 			g_configuration->SetEnabledGuildHallClicky(&clicky, isItemChecked);
 		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			auto zoneText = fmt::format("({}) {}", clicky.zoneShortName, clicky.zoneName);
+			ImGui::TextUnformatted(zoneText.c_str());
+			ImGui::EndTooltip();
+		}
 
 		if (item == numItemsInColumn)
 		{

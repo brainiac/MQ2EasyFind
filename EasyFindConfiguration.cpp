@@ -285,6 +285,9 @@ void EasyFindConfiguration::ResetSettings()
 	m_verboseMessages = false;
 	m_ignoreZoneConnectionDataEnabled = false;
 
+	m_useGuildClickies = true;
+	m_useGuildClickyLua = true;
+
 	m_configNode = YAML::Node();
 	SaveSettings();
 }
@@ -320,6 +323,9 @@ void EasyFindConfiguration::LoadSettings()
 		m_silentGroupCommands = m_configNode["SilentGroupCommands"].as<bool>(true);
 		m_verboseMessages = m_configNode["VerboseMessages"].as<bool>(false);
 		m_ignoreZoneConnectionDataEnabled = m_configNode["IgnoreZoneConnectionData"].as<bool>(false);
+
+		m_useGuildClickies = m_configNode["UseGuildClickies"].as<bool>(true);
+		m_useGuildClickyLua = m_configNode["UseGuildClickyLua"].as<bool>(true);
 	}
 	catch (const YAML::ParserException& ex)
 	{
@@ -644,7 +650,8 @@ const bool EasyFindConfiguration::GetUseGuildClickies() const
 
 void EasyFindConfiguration::SetUseGuildClickies(bool useGuildClickies)
 {
-	m_useGuildClickies = useGuildClickies;
+	m_useGuildClickies = useGuildClickies; 
+	m_configNode["UseGuildClickies"] = m_useGuildClickies;
 	SaveSettings();
 	m_requireConnectionReload = true;
 }
@@ -657,6 +664,7 @@ const bool EasyFindConfiguration::GetUseGuildClickyLua() const
 void EasyFindConfiguration::SetUseGuildClickyLua(bool useGuildClickyLua)
 {
 	m_useGuildClickyLua = useGuildClickyLua;
+	m_configNode["UseGuildClickyLua"] = m_useGuildClickyLua;
 	SaveSettings();
 	m_requireConnectionReload = true;
 }
