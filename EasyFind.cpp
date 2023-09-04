@@ -337,16 +337,16 @@ PLUGIN_API void InitializePlugin()
 	WriteChatf(PLUGIN_MSG "v%s \arBETA\ax by brainiac (\aohttps://github.com/brainiac/MQ2EasyFind\ax)", EASYFIND_PLUGIN_VERSION);
 	WriteChatf(PLUGIN_MSG "Type \ag/easyfind help\ax for more info.");
 
-	g_configuration = new EasyFindConfiguration();
-
 	// Zone connections and other navigation data is stored here
 	std::string easyfindDir = (std::filesystem::path(gPathResources) / "EasyFind").string();
 	g_zoneConnections = new ZoneConnections(easyfindDir);
 
+	g_configuration = new EasyFindConfiguration(easyfindDir);
+
 	ImGui_Initialize();
 	Navigation_Initialize();
 	Lua_Initialize();
-	FindWindow_Initialize();
+	FindWindow_Initialize(); 
 
 	AddCommand("/easyfind", Command_EasyFind, false, true, true);
 	AddCommand("/travelto", Command_TravelTo, false, true, true);

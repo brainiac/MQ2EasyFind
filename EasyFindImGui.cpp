@@ -90,6 +90,134 @@ static void DrawFindZoneConnectionData(const CFindLocationWnd::FindZoneConnectio
 	}
 }
 
+inline int ci_find_substr_x(std::string_view haystack, std::string_view needle)
+{
+	auto iter = std::search(std::begin(haystack), std::end(haystack),
+		std::begin(needle), std::end(needle), ci_less::nocase_equals());
+	if (iter == std::end(haystack)) return -1;
+	return static_cast<int>(iter - std::begin(haystack));
+}
+
+static bool ShowGuildHallClicky(const char* filter, GuildHallClickyItem clicky)
+{
+	if (filter[0] == '\0')
+		return true;
+
+	std::string filter_text(filter);
+
+	if (filter_text.empty()
+		|| ci_find_substr(clicky.zoneShortName, filter_text) != -1
+		|| ci_find_substr(clicky.zoneName, filter_text) != -1
+		|| ci_find_substr(clicky.itemName, filter_text) != -1)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+static void DrawGuildHallClickiesPanel()
+{
+	bool useGuildHallClickies = g_configuration->GetUseGuildClickies();
+	if (ImGui::Checkbox("Use Guild Hall Clickies", &useGuildHallClickies))
+	{
+		g_configuration->SetUseGuildClickies(useGuildHallClickies);
+	}
+	ImGui::SameLine();
+
+	bool useGuildClickyLua= g_configuration->GetUseGuildClickyLua();
+	if (ImGui::Checkbox("Use GuildClicky Lua", &useGuildClickyLua))
+	{
+		g_configuration->SetUseGuildClickyLua(useGuildClickyLua);
+	}
+
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		ImGui::TextUnformatted("Use Sic's GuildClicky Lua rather than EasyFind for travel.");
+		ImGui::TextUnformatted("Still uses EasyFind for list of available clicky items");
+		ImGui::EndTooltip();
+	}
+
+	ImGui::SameLine();
+
+	// Auto Determine (requires player in guild hall)
+	if (g_configuration->CurrentlyInAGuildHall() == false)
+	{
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+	}
+	
+	if (ImGui::Button("Auto Populate"))
+	{
+		g_configuration->DetermineGuildHallClickies();
+	}
+
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		ImGui::TextColored(MQColor(0, 255, 255).ToImColor(), "(Only works when in a placed guild hall)");
+		ImGui::TextUnformatted("Checks items currently placed in the current Guild Hall");
+		ImGui::EndTooltip();
+	}
+
+	if (g_configuration->CurrentlyInAGuildHall() == false)
+	{
+		ImGui::PopItemFlag();
+		ImGui::PopStyleVar();
+	}
+
+	ImGui::Separator();
+
+	static char filterText[256] = { 0 };
+	ImGui::PushItemWidth(200);
+	ImGui::InputText("Filter", filterText, 256);
+	ImGui::SameLine();
+	if (ImGui::Button("X")) {
+		filterText[0] = '\0';
+	}
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		ImGui::TextUnformatted("Clears the filter text.");
+		ImGui::EndTooltip();
+	}
+
+	ImGui::Separator();
+
+	ImGui::Columns(2, "##GuildHallClickyColumns", false);
+
+	auto& guildHallClickies = g_configuration->GetAllGuildHallClickyItems();
+	int item = 0;
+	int numItemsInColumn = (int)(guildHallClickies.size()) / 2;
+	for (int i = 0; i < guildHallClickies.size(); i++)
+	{
+		auto& clicky = guildHallClickies[i];
+		if (ShowGuildHallClicky(filterText, clicky) == false)
+		{
+			continue;
+		}
+		bool isItemChecked = clicky.enabled;
+		auto text = fmt::format("{} ({})", clicky.itemName, clicky.zoneName);
+		if (ImGui::Checkbox(text.c_str(), &isItemChecked))
+		{
+			g_configuration->SetEnabledGuildHallClicky(&clicky, isItemChecked);
+		}
+
+		if (item == numItemsInColumn)
+		{
+			ImGui::NextColumn();
+			item = 0;
+		}
+		else
+		{
+			item++;
+		}
+	}
+
+	ImGui::Columns(1);
+}
+
 static void DrawEasyFindWindowConnections()
 {
 	// refs can change, so we need two ways to determine if we're still on the selected item.
@@ -970,6 +1098,17 @@ void ImGui_OnUpdate()
 				if (ImGui::BeginChild("##SettingsPanel"))
 				{
 					DrawEasyFindSettingsPanel();
+				}
+				ImGui::EndChild();
+
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("Guild Clickies"))
+			{
+				if (ImGui::BeginChild("##GuildClickiesPanel"))
+				{
+					DrawGuildHallClickiesPanel();
 				}
 				ImGui::EndChild();
 

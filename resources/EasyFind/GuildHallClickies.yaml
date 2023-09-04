@@ -1,0 +1,370 @@
+Clickies:
+   abysmal:
+     - zoneName: Abysmal Sea
+       itemName: The Grozmok Stone
+       menuText: 'Teleport to Abysmal Sea'
+       guildClickyCommand: abysmal
+   akanon:
+     - zoneName: Ak`Anon
+       itemName: Shelf of Gnomish Spirits
+       menuText: "Teleport to Ak'Anon"
+     - zoneName: Ak`Anon
+       itemName: Ak'Anon Bubble Lamp
+       menuText: "Teleport to Ak'Anon"
+       guildClickyCommand: akanon2
+   blackburrow:
+     - zoneName: Blackburrow
+       itemName: 'Banner: Blackburrow'
+       menuText: 'Teleport to Blackburrow'
+   butcher:
+     - zoneName: 'Butcherblock Mountains'
+       itemName: 'Statue of Brell'
+       menuText: 'Teleport to Butcherblock Mountains'
+       guildClickyCommand: butcherblock
+   cabeast:
+     - zoneName: 'East Cabilis'
+       itemName: 'Placard: Tink N Babble'
+       menuText: 'Teleport to East Cabilis'
+   cabwest:
+     - zoneName: 'West Cabilis'
+       itemName: "Runnyeye Adventurer's Head"
+       menuText: 'Teleport to Liberated Citadel of Runnyeye'
+   crushbone:
+     - zoneName: Crushbone
+       itemName: 'Banner of Clan Crushbone'
+       menuText: 'Teleport to Clan Crushbone'
+   cobaltscartwo:
+     - zoneName: Cobalt Scar (CoV)
+       itemName: 'Skyshrine Dragon Brazier'
+       menuText: 'Teleport to Cobalt Scar'
+       guildClickyCommand: cobalt
+   crystal:
+     - zoneName: Crystal Caverns
+       itemName: 'Painting: Froststone Gate'
+       menuText: 'Teleport to Crystal Caverns'
+       guildClickyCommand: crystalcaverns
+   potactics:
+     - zoneName: Drunder, Fortress of Zek
+       itemName: 'Painting: Drunder, the Fortress of Zek'
+       menuText: 'Teleport to Drunder, Fortress of Zek'
+       guildClickyCommand: drunder
+   dulak:
+     - zoneName: Dulak's Harbor
+       itemName: "Painting: Dulak's Harbor"
+       menuText: "Teleport to Dulak's Harbor"
+   elddar:
+     - zoneName: Elddar Forest
+       itemName: 'Painting: Elddar Forest'
+       menuText: 'Teleport to The Elddar Forest'
+       guildClickyCommand: eldar
+   erudin:
+     - zoneName: Erudin
+       itemName: 'Erudin Brazier'
+       menuText: 'Teleport to Erudin'
+   everfrost:
+     - zoneName: Everfrost
+       itemName: 'Claw Sconce Torch'
+       menuText: 'Teleport to Everfrost'
+   feerrott2:
+     - zoneName: Feerrott (RoF)
+       itemName: 'Ogrish Spit'
+       menuText: 'Teleport: Feerrott, the Dream'
+   felwithea:
+     - zoneName: South Felwithe
+       itemName: 'Felwithe Candelabra'
+       menuText: 'Teleport to Southern Felwithe'
+       guildClickyCommand: felwithesouth
+   firiona:
+     - zoneName: "Firiona Vie"
+       itemName: "Champion of Tunare Statue"
+       menuText: "Teleport to Firional Vie"
+   freportn:
+     - zoneName: ""
+       itemName: "Painting: Tassel's Tavern"
+       menuText: "Teleport to North Freeport"
+       guildClickyCommand: freeportn
+   frontiermtnsb: 
+     - zoneName: "Frontier Mountains (EoK)"
+       itemName: "Ancient Iksar Translocator Statue" 
+       menuText: "Teleport to Frontier Mountains"
+       guildClickyCommand: frontier
+   crystaltwob: 
+     - zoneName: "Crystal Caverns (ToV)"  
+       itemName: "Froststone Crystal Echo" 
+       menuText: "Teleport to Froststone"
+       guildClickyCommand: froststone
+   hatesfury: 
+     - zoneName: ""  
+       itemName: "Oceanographer's Globe" 
+       menuText: "Teleport to Hate's Fury"
+       guildClickyCommand: fury
+   gfaydark: 
+     - zoneName: ""  
+       itemName: "Torch of Kelethin" 
+       menuText: "Teleport to Greater Faydark"
+   gorowyn: 
+     - zoneName: ""  
+       itemName: "Gorowyn Translocator Lantern" 
+       menuText: "Teleport to Skyfire Mountains"
+       guildClickyCommand: goro
+   grobb: 
+     - zoneName: ""  
+       itemName: "Sign: Gunthak's Beltch" 
+       menuText: "Teleport to Grobb"
+     - zoneName: ""  
+       itemName: "All-Seeing Skull" 
+       menuText: "Teleport to Grobb"
+       guildClickyCommand: grobb2
+     - zoneName: ""  
+       itemName: "Darkone's Throne" 
+       menuText: "Teleport to Grobb"
+       guildClickyCommand: grobb3
+     - zoneName: ""  
+       itemName: "Troll's Butchery" 
+       menuText: "Teleport to Grobb"
+       guildClickyCommand: grobb4
+   growthplane:
+     - zoneName: ""  
+       itemName: "Painting: Tunare's Tree" 
+       menuText: "Teleport to Plane of Growth"
+       guildClickyCommand: growth
+   pohealth: 
+     - zoneName: ""  
+       itemName: "Cynosure of Health" 
+       menuText: "Teleport to the Plane of Health"
+       guildClickyCommand: health
+   halas: 
+     - zoneName: ""  
+       itemName: "Placard: Halas" 
+       menuText: "Teleport to Halas"
+     - zoneName: ""  
+       itemName: "Mounted Snake Head" 
+       menuText: "Teleport to Halas"
+       guildClickyCommand: halas2
+     - zoneName: ""  
+       itemName: "Mounted Bear Head" 
+       menuText: "Teleport to Halas"
+       guildClickyCommand: halas3
+     - zoneName: ""  
+       itemName: "Mounted Tiger Head" 
+       menuText: "Teleport to Halas"
+       guildClickyCommand: halas4
+   highkeep: 
+     - zoneName: ""  
+       itemName: "Painting: High Keep Serpent" 
+       menuText: "Teleport to High Keep"
+     - zoneName: ""  
+       itemName: "Banner: The Knotted Serpent" 
+       menuText: "Teleport to High Keep"
+       guildClickyCommand: highkeep2
+   hole: 
+     - zoneName: ""  
+       itemName: "Tattered Cazicite Banner" 
+       menuText: "Teleport to The Ruins of Old Paineel"
+   iceclad: 
+     - zoneName: ""  
+       itemName: "Banner: Gnome Pirates" 
+       menuText: "Teleport to Iceclad Ocean"
+   thurgadinb: 
+     - zoneName: ""  
+       itemName: "Dain's Throne Replica" 
+       menuText: "Teleport to Icewell Keep"
+       guildClickyCommand: icewell
+   poinnovation: 
+     - zoneName: ""  
+       itemName: "Innovative Heli-Lamp" 
+       menuText: "Teleport of Plane of Innovation"
+       guildClickyCommand: innovation
+   kaladima: 
+     - zoneName: "Kaladim (North)"
+       itemName: "Underfoot Monument"
+       menuText: "Teleport to North Kaladim"
+       guildClickyCommand: kaladim
+   kithicor: 
+     - zoneName: ""  
+       itemName: "Painting: Kithicor Forest" 
+       menuText: "Teleport to Kithicor Forrest"
+   thulelibrary: 
+     - zoneName: ""  
+       itemName: "Library Wall Sconce" 
+       menuText: "Teleport to The Library"
+       guildClickyCommand: library
+   lfaydark: 
+     - zoneName: ""  
+       itemName: "Painting: Brownie Encampment" 
+       menuText: "Teleport to Lesser Faydark"
+   guildlobby: 
+     - zoneName: ""  
+       itemName: "Shabby Lobby Door" 
+       menuText: "Open the Door to the Lobby"
+       guildClickyCommand: lobby
+   mistmoore: 
+     - zoneName: ""  
+       itemName: "Castle of Mistmoore Throne" 
+       menuText: "Teleport to Castle of Mistmoore"
+   mistythicket: 
+     - zoneName: ""  
+       itemName: "Misty Thicket Halfling Bed" 
+       menuText: "Teleport to Misty Thicket"
+       guildClickyCommand: misty
+   nadox: 
+     - zoneName: ""  
+       itemName: "Nadox Chandelier" 
+       menuText: "Teleport to Crypt of Nadox"
+   neriakb: 
+     - zoneName: ""  
+       itemName: "Painting: The Blind Fish" 
+       menuText: "Teleport to Neriak - Commons"
+       guildClickyCommand: neriak
+     - zoneName: ""  
+       itemName: "Painting: Toadstool Tavern" 
+       menuText: "Teleport to Neriak - Commons"
+       guildClickyCommand: neriakc
+   neriakc:
+     - zoneName: ""  
+       itemName: "Painting: Maiden's Fancy" 
+       menuText: "Teleport to Neriak - Third Gate"
+       guildClickyCommand: neriak3rd
+   neriaka: 
+     - zoneName: ""  
+       itemName: "Painting: Slugs Tavern" 
+       menuText: "Teleport to Neriak - Foreign Quarter"
+       guildClickyCommand: neriakfq
+   qeynos2: 
+     - zoneName: ""  
+       itemName: "Coat of Arms: Qeynos" 
+       menuText: "Teleport to North Qeynos"
+       guildClickyCommand: nqeynos
+     - zoneName: ""  
+       itemName: "Painting: Crow's Pub & Casino" 
+       menuText: "Teleport to North Qeynos"
+       guildClickyCommand: nqeynos2
+     - zoneName: ""  
+       itemName: "Banner: Traveler's Tapestry" 
+       menuText: "Teleport to North Qeynos"
+       guildClickyCommand: nqeynos3
+   oggok: 
+     - zoneName: ""  
+       itemName: "Oggok Boulder Lounger" 
+       menuText: "Teleport to Oggok"
+   oot: 
+     - zoneName: ""  
+       itemName: "Islander Hammock" 
+       menuText: "Teleport to Ocean of Tears"
+   paineel: 
+     - zoneName: ""  
+       itemName: "Bookshelf of Paineel" 
+       menuText: "Teleport to Paineel"
+   permafrost: 
+     - zoneName: ""  
+       itemName: "Frozen Barbarian Adventurer" 
+       menuText: "Teleport to Permafrost"
+     - zoneName: ""  
+       itemName: "Frozen Barbarian Adventuress" 
+       menuText: "Teleport to Permafrost"
+       guildClickyCommand: permafrost2
+   rivervale: 
+     - zoneName: ""  
+       itemName: "Rivervale Jumjum Cart" 
+       menuText: "Teleport to Rivervale"
+   runnyeye: 
+     - zoneName: ""  
+       itemName: "Runnyeye Adventurer's Head" 
+       menuText: "Teleport to Liberated Citadel of Runnyeye"
+   sseru: 
+     - zoneName: ""  
+       itemName: "Statue: Sanctus Seru" 
+       menuText: "Teleport to Sanctus Seru"
+       guildClickyCommand: sanctus
+     - zoneName: ""  
+       itemName: "Banner: Sanctus Seru" 
+       menuText: "Teleport to Sanctus Seru"
+       guildClickyCommand: sanctus2
+   sebilis: 
+     - zoneName: ""  
+       itemName: "Froglok Head in a Jar" 
+       menuText: "Teleport to Old Sebilis"
+       guildClickyCommand: seb
+   shadowhaven: 
+     - zoneName: ""  
+       itemName: "Shadow Haven Teleport Pad" 
+       menuText: "Teleport to Shadow Haven"
+   qeynos: 
+     - zoneName: ""  
+       itemName: "Painting: Lion's Mane Tavern" 
+       menuText: "Teleport to South Qeynos"
+       guildClickyCommand: sqeynos
+   stratos: 
+     - zoneName: ""  
+       itemName: "Stratos Fire Platform" 
+       menuText: "Teleport to Stratos"
+   steamfontmts: 
+     - zoneName: ""  
+       itemName: "Steamfont Lava Lamp" 
+       menuText: "Teleport to Steamfont Mountains"
+     - zoneName: ""  
+       itemName: "Fantastic Fuel Orb" 
+       menuText: "Teleport to Steamfont Mountains"
+       guildClickyCommand: steamfont2
+   stonebrunt: 
+     - zoneName: ""  
+       itemName: "Painting: Stonebrunt Mountains" 
+       menuText: "Teleport to Stonebrunt Mountains"
+   qrg: 
+     - zoneName: ""  
+       itemName: "Brazier: The Everburning Ruby" 
+       menuText: "Teleport to Surefall Glade"
+       guildClickyCommand: surefall
+     - zoneName: ""  
+       itemName: "Painting: The Founder" 
+       menuText: "Teleport to Surefall Glade"
+       guildClickyCommand: surefall2
+   swampofnohope: 
+     - zoneName: ""  
+       itemName: "Statue: Iksar Head" 
+       menuText: "Teleport to Swamp of No Hope"
+       guildClickyCommand: swamp
+   takishruins: 
+     - zoneName: ""  
+       itemName: "Painting: Ruins of Takish-Hiz" 
+       menuText: "Teleport to Ruins of Takish-Hiz"
+   thurgadina: 
+     - zoneName: ""  
+       itemName: "Dwarven Ice Statue"
+       menuText: "Teleport to Thurgadin"
+       guildClickyCommand: thurgadin
+   toskirakk: 
+     - zoneName: ""  
+       itemName: "Statue of Toskirakk" 
+       menuText: "Teleport to Toskirakk"
+       guildClickyCommand: tosk
+   toxxulia: 
+     - zoneName: ""  
+       itemName: "Painting: Toxxulia Forest"
+       menuText: "Teleport to Toxxulia Forest"  
+       guildClickyCommand: toxx
+   trakanon: 
+     - zoneName: ""  
+       itemName: "Emperor Ganak Throne"
+       menuText: "Teleport to Trakanon's Teeth"
+       guildClickyCommand: trak
+     - zoneName: ""  
+       itemName: "Statue: Iksar Bust" 
+       menuText: "Teleport to Trakanon's Teeth"
+       guildClickyCommand: trak2
+   umbral:
+     - zoneName: ""
+       itemName: "Umbral Plains Scrying Bowl"
+       menuText: "Teleport to Umbral Plains"
+   powar:
+     - zoneName: "" 
+       itemName: "Plane of War Spire" 
+       menuText: "Teleport to The Plane of War"
+   warrens:
+     - zoneName: "" 
+       itemName: "King Gragnar's Throne" 
+       menuText: "Teleport to The Warrens"
+   xorbb: 
+     - zoneName: "" 
+       itemName: "Painting: Throne of Xorbb"
+       menuText: "Teleport to Valley of King Xorbb"

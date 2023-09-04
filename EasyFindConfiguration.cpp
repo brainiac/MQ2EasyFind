@@ -81,6 +81,28 @@ namespace YAML
 	};
 
 	template <>
+	struct convert<GuildHallClickyItem> {
+		static Node encode(const GuildHallClickyItem& data) {
+			Node node;
+			return node;
+		}
+
+		static bool decode(const Node& node, GuildHallClickyItem& data) {
+			if (!node.IsMap()) {
+				return false;
+			}
+
+			data.zoneName = node["zoneName"].as<std::string>(std::string());
+			data.zoneShortName = node["zoneShortName"].as<std::string>(std::string());
+			data.itemName = node["itemName"].as<std::string>(std::string());
+			data.menuText = node["menuText"].as<std::string>(std::string());
+			data.guildClickyCommand = node["guildClickyCommand"].as<std::string>(std::string());
+
+			return true;
+		}
+	};
+
+	template <>
 	struct convert<ConfiguredGroupPlugin> {
 		static Node encode(ConfiguredGroupPlugin data) {
 			Node node;
@@ -200,8 +222,15 @@ protected:
 //============================================================================
 //============================================================================
 
-EasyFindConfiguration::EasyFindConfiguration()
+EasyFindConfiguration::EasyFindConfiguration(const std::string& easyfindDirectory)
+	: m_easyfindDir(easyfindDirectory)
 {
+	std::error_code ec;
+	if (!fs::is_directory(m_easyfindDir, ec))
+	{
+		fs::create_directories(m_easyfindDir, ec);
+	}
+
 	m_configuredColors = s_defaultColors;
 
 	// The config file holds our user preferences
@@ -245,6 +274,7 @@ void EasyFindConfiguration::ReloadSettings()
 void EasyFindConfiguration::ResetSettings()
 {
 	m_disabledTransferTypesPrefs.clear();
+	m_enabledGuildHallClickies.clear();
 	m_configuredColors = s_defaultColors;
 	m_navLogLevel = spdlog::level::err;
 	m_chatSink->set_level(spdlog::level::info);
@@ -280,6 +310,8 @@ void EasyFindConfiguration::LoadSettings()
 
 		// transfer types
 		LoadDisabledTransferTypes();
+		LoadEnabledGuildHallClickies();
+		LoadGuildHallClickiesFile();
 
 		m_groupPluginSelection = m_configNode["GroupPlugin"].as<ConfiguredGroupPlugin>(ConfiguredGroupPlugin::Auto);
 
@@ -485,6 +517,190 @@ void EasyFindConfiguration::RefreshTransferTypes()
 
 		m_disabledTransferTypes[i] = false;
 	}
+}
+
+void EasyFindConfiguration::LoadEnabledGuildHallClickies()
+{
+	std::vector<std::string> enabledGuildHallClickies;
+
+	YAML::Node node = m_configNode["EnabledGuildHallClickies"];
+	if (node.IsDefined())
+	{
+		enabledGuildHallClickies = node.as<std::vector<std::string>>(std::vector<std::string>());
+	}
+
+	m_enabledGuildHallClickies = std::move(enabledGuildHallClickies);
+}
+
+GuildHallClickies EasyFindConfiguration::GetAllGuildHallClickyItems() const
+{
+	return m_allGuildHallClickies;
+}
+
+void EasyFindConfiguration::LoadGuildHallClickiesFile()
+{
+	std::string configFile = (fs::path(m_easyfindDir) / "GuildHallClickies.yaml").string();
+
+	YAML::Node guildHallClickiesConfig;
+	try
+	{
+		guildHallClickiesConfig = YAML::LoadFile(configFile);
+	}
+	catch (const YAML::ParserException& ex)
+	{
+		// failed to parse, notify and return
+		SPDLOG_ERROR("Failed to parse YAML in {}: {}", configFile, ex.what());
+		return;
+	}
+	catch (const YAML::BadFile&)
+	{
+		return;
+	}
+
+	YAML::Node guildHallClickies = guildHallClickiesConfig["Clickies"];
+
+	if (guildHallClickies.IsMap() == false)
+	{
+		// TODO: Error or... default or...
+		return;
+	}
+
+	auto& map = guildHallClickies.as<std::map<std::string, std::vector<GuildHallClickyItem>, ci_less>>();
+
+	for (auto& [name, locations] : map)
+	{
+		for (auto& location : locations)
+		{
+			// TODO: better way to handle this
+			//auto zoneIndex = pWorldData->GetIndexFromZoneName(name.c_str());
+			//auto zoneDetails = pWorldData->GetZone(zoneIndex);
+
+			location.zoneShortName = name;
+
+			EQZoneInfo* pZone = pWorldData->GetZone(GetZoneID(name.c_str()));
+			if (pZone == NULL)
+			{
+				location.zoneName = fmt::format("*** INVALID: ({})", name);
+			}
+			else if (location.zoneName.empty())
+			{
+				location.zoneName = pZone->LongName;
+			}
+
+			if (location.guildClickyCommand.empty())
+			{
+				location.guildClickyCommand = location.zoneShortName;
+			}
+
+			auto iterPref = std::find(m_enabledGuildHallClickies.begin(), m_enabledGuildHallClickies.end(), location.itemName);
+			location.enabled = iterPref != m_enabledGuildHallClickies.end();
+
+			m_allGuildHallClickies.push_back(location);
+		}
+	}
+}
+
+// TODO: Can move to more appropriate location
+const bool EasyFindConfiguration::CurrentlyInAGuildHall() const
+{
+	EQZoneInfo* pCurrentZone = pWorldData->GetZone(pLocalPC->currentZoneId);
+	switch (pCurrentZone->Id)
+	{
+	case 751: // Guldhall3 (Modest Guild Hall)
+	case 737: // guildhalllrg (Palatial Guild Hall)
+	case 738: // guildhallsml (Grand Guild Hall)
+		return true;
+	default:
+		return false;
+	}
+}
+
+void EasyFindConfiguration::DetermineGuildHallClickies()
+{
+	if (CurrentlyInAGuildHall() == false)
+	{
+		return;
+	}
+
+	m_enabledGuildHallClickies.clear();
+	for (auto clicky = m_allGuildHallClickies.begin(); clicky != m_allGuildHallClickies.end(); clicky++)
+	{
+		auto x = GetGroundSpawnByName(clicky->itemName);
+		auto exists = x.Type == MQGroundSpawnType::Placed;
+		clicky->enabled = exists;
+		if (exists)
+			m_enabledGuildHallClickies.push_back(clicky->itemName);
+	}
+
+	m_configNode["EnabledGuildHallClickies"] = m_enabledGuildHallClickies;
+	SaveSettings();
+	m_requireConnectionReload = true;
+}
+
+const bool EasyFindConfiguration::GetUseGuildClickies() const
+{
+	return m_useGuildClickies;
+}
+
+void EasyFindConfiguration::SetUseGuildClickies(bool useGuildClickies)
+{
+	m_useGuildClickies = useGuildClickies;
+	SaveSettings();
+	m_requireConnectionReload = true;
+}
+
+const bool EasyFindConfiguration::GetUseGuildClickyLua() const
+{
+	return m_useGuildClickyLua;
+}
+
+void EasyFindConfiguration::SetUseGuildClickyLua(bool useGuildClickyLua)
+{
+	m_useGuildClickyLua = useGuildClickyLua;
+	SaveSettings();
+	m_requireConnectionReload = true;
+}
+
+bool EasyFindConfiguration::RequireReload()
+{
+	if (m_requireConnectionReload == false)
+		return false;
+
+	m_requireConnectionReload = false;
+	return true;
+}
+
+void EasyFindConfiguration::SetEnabledGuildHallClicky(GuildHallClickyItem* clicky, bool enabled)
+{
+	auto iterClicky = std::find_if(
+		m_allGuildHallClickies.begin(), m_allGuildHallClickies.end(),
+		[&](const GuildHallClickyItem& value) { return value.itemName == clicky->itemName; });
+
+	if (iterClicky->enabled == enabled)
+		return;
+
+	iterClicky->enabled = enabled;
+	auto iterPref = std::find(m_enabledGuildHallClickies.begin(), m_enabledGuildHallClickies.end(), iterClicky->itemName);
+
+	bool isDirty = false;
+
+	if (enabled && iterPref == m_enabledGuildHallClickies.end())
+	{
+		m_enabledGuildHallClickies.push_back(iterClicky->itemName);
+		isDirty = true;
+	}
+	else if (enabled == false && iterPref != m_enabledGuildHallClickies.end())
+	{
+		m_enabledGuildHallClickies.erase(iterPref);
+		isDirty = true;
+	}
+
+	if (isDirty == false)
+		return;
+
+	m_configNode["EnabledGuildHallClickies"] = m_enabledGuildHallClickies;
+	SaveSettings();
+	m_requireConnectionReload = true;
 }
 
 void EasyFindConfiguration::LoadDisabledTransferTypes()

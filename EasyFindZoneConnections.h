@@ -68,6 +68,9 @@ public:
 	const std::string& GetConfigDir() const { return m_easyfindDir; }
 
 	void Load();
+	void LoadZoneConnections();
+	void LoadZoneConnectionsCustom();
+	void LoadGuildHallClickies();
 	void LoadFindableLocations();
 
 	void ReloadFindableLocations();

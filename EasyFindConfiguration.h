@@ -36,10 +36,21 @@ namespace spdlog {
 	}
 }
 
+struct GuildHallClickyItem
+{
+	std::string zoneName;
+	std::string zoneShortName;
+	std::string guildClickyCommand;
+	std::string itemName;
+	std::string menuText;
+	bool enabled = false;
+};
+using GuildHallClickies = std::vector<GuildHallClickyItem>;
+
 class EasyFindConfiguration
 {
 public:
-	EasyFindConfiguration();
+	EasyFindConfiguration(const std::string& configDirectory);
 	~EasyFindConfiguration();
 
 	void LoadSettings();
@@ -79,6 +90,17 @@ public:
 	bool IsDisabledTransferType(int transferTypeIndex) const;
 	void SetDisabledTransferType(int transferTypeIndex, bool disabled);
 
+	// guild hall clickies
+	void SetEnabledGuildHallClicky(GuildHallClickyItem* clicky, bool enabled);
+	GuildHallClickies GetAllGuildHallClickyItems() const;
+	void DetermineGuildHallClickies();
+	const bool CurrentlyInAGuildHall() const;
+	bool RequireReload();
+	const bool GetUseGuildClickies() const;
+	void SetUseGuildClickies(bool useGuildClickies);
+	const bool GetUseGuildClickyLua() const;
+	void SetUseGuildClickyLua(bool useGuildClickyLua);
+
 	// group execution behaviors
 	bool IsEQBCLoaded() const { return m_eqbcLoaded; }
 	bool IsDannetLoaded() const { return m_dannetLoaded; }
@@ -94,10 +116,20 @@ public:
 
 private:
 	void LoadDisabledTransferTypes();
+	void LoadEnabledGuildHallClickies();
+	void LoadGuildHallClickiesFile();
 
 private:
+	std::string m_easyfindDir;
 	std::string m_configFile;
 	YAML::Node m_configNode;
+
+	bool m_guildHallClickiesLoaded = false;
+	GuildHallClickies m_allGuildHallClickies;
+	std::vector<std::string> m_enabledGuildHallClickies;   // user pref
+	bool m_requireConnectionReload;
+	bool m_useGuildClickyLua;
+	bool m_useGuildClickies;
 
 	std::vector<std::string> m_disabledTransferTypesPrefs; // user pref
 	std::vector<bool> m_supportedTransferTypes;            // hardcoded disabled, converted to index when data is loaded

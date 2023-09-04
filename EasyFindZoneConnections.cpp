@@ -49,7 +49,7 @@ namespace YAML
 
 	template <>
 	struct convert<ParsedTranslocatorDestination> {
-		static Node encode(const ParsedTranslocatorDestination& data) {
+		static Node encode(const ParsedTranslocatorDestination& data) { 
 			Node node;
 			return node;
 		}
@@ -125,7 +125,7 @@ namespace YAML
 
 					if (data.switchId != -1 || (!data.switchName.empty() && !ci_equals(data.switchName, "none")))
 					{
-						data.type = LocationType::Switch;
+						data.type = LocationType::Switch; 
 					}
 				}
 
@@ -254,7 +254,36 @@ ZoneConnections::~ZoneConnections()
 
 void ZoneConnections::Load()
 {
+	LoadZoneConnections();
+	LoadZoneConnectionsCustom();
+}
+
+void ZoneConnections::LoadZoneConnections()
+{
 	std::string configFile = (fs::path(m_easyfindDir) / "ZoneConnections.yaml").string();
+	try
+	{
+		m_zoneConnectionsConfig = YAML::LoadFile(configFile);
+	}
+	catch (const YAML::ParserException& ex)
+	{
+		// failed to parse, notify and return
+		SPDLOG_ERROR("Failed to parse YAML in {}: {}", configFile, ex.what());
+		return;
+	}
+	catch (const YAML::BadFile&)
+	{
+		// if we can't read the file, then try to write it with an empty config
+		return;
+	}
+}
+
+void ZoneConnections::LoadZoneConnectionsCustom()
+{
+	std::string configFile = (fs::path(m_easyfindDir) / "ZoneConnections_Custom.yaml").string();
+	if (!fs::exists(configFile))
+		return;
+
 	try
 	{
 		m_zoneConnectionsConfig = YAML::LoadFile(configFile);
@@ -314,17 +343,17 @@ void ZoneConnections::LoadFindableLocations()
 			data.findableLocations.erase(
 				std::remove_if(data.findableLocations.begin(), data.findableLocations.end(),
 					[&](const ParsedFindableLocation& pfl)
+			{
+				if (pfl.remove)
 				{
-					if (pfl.remove)
-					{
-						if (pfl.zoneId != 0)
-							data.removedConnections.push_back(pfl.zoneId);
+					if (pfl.zoneId != 0)
+						data.removedConnections.push_back(pfl.zoneId);
 
-						return true;
-					}
+					return true;
+				}
 
-					return false;
-				}), data.findableLocations.end());
+				return false;
+			}), data.findableLocations.end());
 
 			// Load any removed zones into the zone guide.
 			if (pZoneGuideWnd && !data.removedConnections.empty())
@@ -343,6 +372,8 @@ void ZoneConnections::LoadFindableLocations()
 				}
 			}
 		}
+
+		LoadGuildHallClickies();
 	}
 	catch (const YAML::Exception& ex)
 	{
@@ -351,6 +382,55 @@ void ZoneConnections::LoadFindableLocations()
 	}
 
 	FindWindow_LoadZoneConnections();
+}
+
+void ZoneConnections::LoadGuildHallClickies()
+{
+	if (!pWorldData)
+		return;
+
+	if (g_configuration->GetUseGuildClickies() == false)
+		return;
+
+	try
+	{
+		EZZoneData& sourceZoneData = m_findableLocations["guildhall3"];
+
+		for (auto& location : g_configuration->GetAllGuildHallClickyItems())
+		{
+			if (location.enabled == false)
+				continue;
+
+			auto& command = location.guildClickyCommand;
+			if (command.empty())
+				command = location.zoneShortName;
+
+			ParsedFindableLocation xef;
+			if (g_configuration->GetUseGuildClickyLua())
+			{
+				xef.typeString = "ZoneConnection";
+				xef.zoneId = GetZoneID(location.zoneShortName.c_str());
+				xef.type = LocationType::Location;
+				xef.location = { 0.56, 104.09, -16.82 };
+				xef.luaScript = "mq.cmd('/gc " + command + "')";
+			}
+			else
+			{
+				xef.typeString = "ZoneConnection";
+				xef.zoneId = GetZoneID(location.zoneShortName.c_str());
+				xef.type = LocationType::Location;
+				xef.location = { 0.56, 104.09, -16.82 };
+				xef.luaScript = "mq.cmd('/gc " + command + "')";
+			}
+
+			sourceZoneData.findableLocations.insert(sourceZoneData.findableLocations.end(), xef);
+		}
+	}
+	catch (const YAML::Exception& ex)
+	{
+		// failed to parse, notify and return
+		SPDLOG_ERROR("Failed to load guild hall clickies: {}", ex.what());
+	}
 }
 
 void ZoneConnections::CreateFindableLocations(FindableLocations& findableLocations, std::string_view shortName)
@@ -404,7 +484,7 @@ void ZoneConnections::CreateFindableLocations(FindableLocations& findableLocatio
 			}
 			break;
 		}
-
+		
 		case LocationType::Unknown:
 			break;
 		}
@@ -609,5 +689,10 @@ void ZoneConnections::Pulse()
 		g_configuration->RefreshTransferTypes();
 
 		m_transferTypesLoaded = true;
+	}
+
+	if (g_configuration->RequireReload())
+	{
+		ReloadFindableLocations();
 	}
 }

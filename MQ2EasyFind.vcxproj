@@ -131,6 +131,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+    <None Include="resources\EasyFind\GuildHallClickies.yaml" />
     <None Include="resources\EasyFind\ZoneConnections.yaml" />
   </ItemGroup>
   <ItemGroup>
