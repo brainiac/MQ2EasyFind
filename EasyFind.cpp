@@ -193,6 +193,13 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
+	if (ci_starts_with(szLine, "reload "))
+	{
+		szLine += strlen("reload") + 1;
+		g_zoneConnections->ReloadFindableLocations(szLine);
+		return;
+	}
+
 	if (ci_equals(szLine, "reloadsettings"))
 	{
 		g_configuration->ReloadSettings();
