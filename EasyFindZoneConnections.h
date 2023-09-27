@@ -67,10 +67,10 @@ public:
 
 	const std::string& GetConfigDir() const { return m_easyfindDir; }
 
-	void Load(std::string customFile = std::string());
+	void Load(std::string_view customFile = {});
 	void LoadFindableLocations();
 
-	void ReloadFindableLocations(std::string customFile = std::string());
+	void ReloadFindableLocations(std::string_view customFile = {});
 
 	void CreateFindableLocations(FindableLocations& findableLocations, std::string_view shortName);
 

@@ -252,17 +252,17 @@ ZoneConnections::~ZoneConnections()
 {
 }
 
-void ZoneConnections::Load(std::string customFile)
+void ZoneConnections::Load(std::string_view customFile)
 {
-	std::string empty = std::string();
-	std::string configFile = ci_equals(customFile, empty) ?
-		(fs::path(m_easyfindDir) / "ZoneConnections.yaml").string() :
-		(fs::path(m_easyfindDir) / customFile).string();
+	if (customFile.empty())
+		customFile = "ZoneConnections.yaml";
 
-	if (!ci_equals(customFile, empty) && !fs::exists(configFile))
+	std::string configFile = (fs::path(m_easyfindDir) / customFile).string();
+
+	if (!fs::exists(configFile))
 	{
 		// custom file does not exist
-		SPDLOG_ERROR("Custom config file {} was not found!", configFile);
+		SPDLOG_ERROR("Config file {} was not found!", configFile);
 		return;
 	}
 
@@ -283,7 +283,7 @@ void ZoneConnections::Load(std::string customFile)
 	}
 }
 
-void ZoneConnections::ReloadFindableLocations(std::string customFile)
+void ZoneConnections::ReloadFindableLocations(std::string_view customFile)
 {
 	SPDLOG_INFO("Reloading zone connections");
 
