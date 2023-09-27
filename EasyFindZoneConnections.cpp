@@ -261,7 +261,7 @@ void ZoneConnections::Load(std::string_view customFile)
 
 	if (!fs::exists(configFile))
 	{
-		// custom file does not exist
+		// config file does not exist
 		SPDLOG_ERROR("Config file {} was not found!", configFile);
 		return;
 	}
