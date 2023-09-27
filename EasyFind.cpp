@@ -193,6 +193,14 @@ void Command_EasyFind(SPAWNINFO* pSpawn, char* szLine)
 		return;
 	}
 
+	constexpr auto prefixLen = std::string::traits_type::length("reload");
+	if (ci_starts_with(szLine, "reload ") && strlen(szLine) > prefixLen + 1)
+	{
+		auto arg = std::string_view(szLine).substr(prefixLen + 1);
+		g_zoneConnections->ReloadFindableLocations(arg);
+		return;
+	}
+
 	if (ci_equals(szLine, "reloadsettings"))
 	{
 		g_configuration->ReloadSettings();
