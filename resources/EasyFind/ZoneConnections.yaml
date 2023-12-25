@@ -1160,6 +1160,26 @@ FindLocations:
             targetZone: greatdivide
             replace: false
         -   type: ZoneConnection
+            switch: 8
+            targetZone: overthere
+            name: 'The Overthere'
+            script: |
+                -- Wait for window to open and click the button on the right
+                mq.delay('10s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                if mq.TLO.Window('LargeDialogWindow').Open() then
+                    mq.TLO.Window('LargeDialogWindow/LDW_NoButton').LeftMouseUp()
+                end
+        -   type: ZoneConnection
+            switch: 8
+            targetZone: overtheretwo
+            name: 'Ring of Scale: The Overthere'
+            script: |
+                -- Wait for window to open and click the button on the left
+                mq.delay('10s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                if mq.TLO.Window('LargeDialogWindow').Open() then
+                    mq.TLO.Window('LargeDialogWindow/LDW_YesButton').LeftMouseUp()
+                end
+        -   type: ZoneConnection
             switch: POKFELPORT500
             targetZone: gfaydark
             identifier: 1
