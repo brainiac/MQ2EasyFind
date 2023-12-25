@@ -1156,12 +1156,25 @@ FindLocations:
             targetZone: firiona
             replace: false
         -   type: ZoneConnection
-            switch: 15
-            targetZone: greatdivide
+            targetZone: greatdividetwo
             name: 'The Great Divide'
+            switch: 15
+            expansion: Torment of Velious
             script: |
+                -- Wait for window to open and click the button on the left
+                mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                if mq.TLO.Window('LargeDialogWindow').Open() then
+                    mq.TLO.Window('LargeDialogWindow/LDW_YesButton').LeftMouseUp()
+                end
+            expansion: Torment of Velious
+        -   type: ZoneConnection
+            targetZone: greatdivide
+            name: 'Great Divide'
+            switch: 15
+            script: |
+                -- FIXME: Before House of Thule opens
                 -- Wait for window to open and click the button on the right
-                mq.delay('10s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
                 if mq.TLO.Window('LargeDialogWindow').Open() then
                     mq.TLO.Window('LargeDialogWindow/LDW_NoButton').LeftMouseUp()
                 end
@@ -1217,6 +1230,28 @@ FindLocations:
             switch: POKNPORT500
             targetZone: nexus
             replace: false
+        -   type: ZoneConnection
+            targetZone: overtheretwo
+            name: 'Overthere (Ring of Scale)'
+            switch: 8
+            script: |
+                -- Wait for window to open and click the button on the left
+                mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                if mq.TLO.Window('LargeDialogWindow').Open() then
+                    mq.TLO.Window('LargeDialogWindow/LDW_YesButton').LeftMouseUp()
+                end
+            expansion: Ring of Scale
+        -   type: ZoneConnection
+            targetZone: overthere
+            name: 'The Overthere'
+            switch: 8
+            script: |
+                -- FIXME: Before House of Thule opens
+                -- Wait for window to open and click the button on the right
+                mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                if mq.TLO.Window('LargeDialogWindow').Open() then
+                    mq.TLO.Window('LargeDialogWindow/LDW_NoButton').LeftMouseUp()
+                end
         -   type: Translocator
             name: Herald of Druzzil Ro
             targetZone: potimea
@@ -1231,6 +1266,28 @@ FindLocations:
             targetZone: rathemtn
             replace: false
             expansion: Legacy of Ykesha
+        -   type: ZoneConnection
+            targetZone: shadeweavertwo
+            name: 'Shar Vahl, Divided (Night of Shadows)'
+            switch: 14
+            script: |
+                -- Wait for window to open and click the button on the left
+                mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                if mq.TLO.Window('LargeDialogWindow').Open() then
+                    mq.TLO.Window('LargeDialogWindow/LDW_YesButton').LeftMouseUp()
+                end
+            expansion: Night of Shadows
+        -   type: ZoneConnection
+            targetZone: shadeweaver
+            name: 'Shar Vahl'
+            switch: 14
+            script: |
+                -- FIXME: Before House of Thule opens
+                -- Wait for window to open and click the button on the right
+                mq.delay('5s', function() return mq.TLO.Window('LargeDialogWindow').Open() end)
+                if mq.TLO.Window('LargeDialogWindow').Open() then
+                    mq.TLO.Window('LargeDialogWindow/LDW_NoButton').LeftMouseUp()
+                end
         -   type: ZoneConnection
             switch: 9
             targetZone: steamfontmts
