@@ -499,7 +499,7 @@ bool ZoneConnections::MigrateIniData()
 						std::vector<std::string_view> pieces = split_view(value, ' ', true);
 
 						int switchId = -1;
-						glm::vec3 position;
+						glm::vec3 position(0, 0, 0);
 
 						int index = 0;
 						size_t size = pieces.size();

@@ -52,7 +52,7 @@ struct FindLocationRequestState
 
 	int spawnID = 0;
 	int switchID = -1;
-	glm::vec3 location;
+	glm::vec3 location = { 0, 0, 0 };
 	FindLocationType type;
 	EQZoneIndex zoneId = 0;
 	std::shared_ptr<FindableLocation> findableLocation;
