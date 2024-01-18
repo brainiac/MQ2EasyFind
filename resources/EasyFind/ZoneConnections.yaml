@@ -1006,6 +1006,10 @@ FindLocations:
             location: [5221, -2533, -3.61]
             targetZone: southro
             identifier: 1
+        - type: ZoneConnection
+            location: [5705, -2414, 25]
+            targetZone: anniversarytower
+            switch: 2
         -   type: ZoneConnection
             location: [5563.95, -1193.54, 23.44]
             targetZone: taka
