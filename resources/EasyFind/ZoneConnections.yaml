@@ -11,6 +11,12 @@ FindLocations:
         -   type: ZoneConnection
             location: [-1449.92, 125.33, 19]
             targetZone: maidentwo
+    anniversarytower:
+        -   type: ZoneConnection
+            location: [42, 29, 30]
+            targetZone: anniversarytower
+            name: 'Tides of Time: A Time to Run'
+            switch: 1
     arcstone:
         -   type: ZoneConnection
             location: [-228, 1610, 5.64]
@@ -1006,7 +1012,7 @@ FindLocations:
             location: [5221, -2533, -3.61]
             targetZone: southro
             identifier: 1
-        - type: ZoneConnection
+        -   type: ZoneConnection
             location: [5705, -2414, 25]
             targetZone: anniversarytower
             switch: 2
