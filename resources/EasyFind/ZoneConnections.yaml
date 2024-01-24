@@ -17,6 +17,10 @@ FindLocations:
             targetZone: anniversarytower
             name: 'Tides of Time: A Time to Run'
             switch: 1
+        -   type: ZoneConnection
+            location: [-73, -41, -17]
+            targetZone: northro
+            switch: 20
     arcstone:
         -   type: ZoneConnection
             location: [-228, 1610, 5.64]
