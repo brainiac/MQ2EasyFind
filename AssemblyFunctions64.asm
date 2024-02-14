@@ -14,6 +14,12 @@ extern VTABLE
 
 %endmacro
 
+%ifdef TEST
+%define test_adj 0x10
+%else
+%define test_adj 0
+%endif
+
 make_override 0x0, ?IsValid@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBA_NXZ
 ; intentionally skipped destructor because we can't make this one ourselves.
 make_override 0x10, ?GetWndClassName@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAPEBDXZ
@@ -97,33 +103,37 @@ make_override 0x278, ?Minimize@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detai
 make_override 0x280, ?SetWindowText@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXAEBVCXStr@3@@Z
 make_override 0x288, ?SetTooltip@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXAEBVCXStr@3@@Z
 make_override 0x290, ?Center@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXXZ
-make_override 0x298, ?Top@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
-make_override 0x2a0, ?Bottom@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
-make_override 0x2a8, ?Right@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
-make_override 0x2b0, ?Left@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
-make_override 0x2b8, ?MoveToCursor@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHXZ
-make_override 0x2c0, ?GetChildWndAt@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAPEAVCXWnd@3@AEBVCXPoint@3@_N1@Z
-make_override 0x2c8, ?GetSidlPiece@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAPEAVCScreenPieceTemplate@3@AEBVCXStr@3@_N@Z
-make_override 0x2d0, ?GetWindowName@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAPEBVCXStr@3@XZ
-make_override 0x2d8, ?SetVScrollPos@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHH@Z
-make_override 0x2e0, ?SetHScrollPos@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHH@Z
-make_override 0x2e8, ?AutoSetVScrollPos@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHVCXRect@3@@Z
-make_override 0x2f0, ?AutoSetHScrollPos@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHVCXRect@3@@Z
-make_override 0x2f8, ?SetAttributesFromSidl@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXPEAVCParamScreenPiece@3@@Z
-make_override 0x300, ?OnReloadSidl@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXXZ
-make_override 0x308, ?HasActivatedFirstTimeAlert@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBA_NXZ
-make_override 0x310, ?SetHasActivatedFirstTimeAlert@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
-make_override 0x318, ?GetMinClientSize@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAAEBVCXSize@3@XZ
-make_override 0x320, ?GetMaxClientSize@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAAEBVCXSize@3@XZ
-make_override 0x328, ?GetActiveEditWnd@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAPEAVCEditWnd@3@XZ
-make_override 0x330, ?UpdateLayout@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
+%ifdef TEST
+make_override 0x298, ?CenterVertically@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXXZ
+make_override 0x2a0, ?CenterHorizontally@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXXZ
+%endif
+make_override 0x298 + test_adj, ?Top@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
+make_override 0x2a0 + test_adj, ?Bottom@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
+make_override 0x2a8 + test_adj, ?Right@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
+make_override 0x2b0 + test_adj, ?Left@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
+make_override 0x2b8 + test_adj, ?MoveToCursor@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHXZ
+make_override 0x2c0 + test_adj, ?GetChildWndAt@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAPEAVCXWnd@3@AEBVCXPoint@3@_N1@Z
+make_override 0x2c8 + test_adj, ?GetSidlPiece@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAPEAVCScreenPieceTemplate@3@AEBVCXStr@3@_N@Z
+make_override 0x2d0 + test_adj, ?GetWindowName@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAPEBVCXStr@3@XZ
+make_override 0x2d8 + test_adj, ?SetVScrollPos@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHH@Z
+make_override 0x2e0 + test_adj, ?SetHScrollPos@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHH@Z
+make_override 0x2e8 + test_adj, ?AutoSetVScrollPos@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHVCXRect@3@@Z
+make_override 0x2f0 + test_adj, ?AutoSetHScrollPos@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHVCXRect@3@@Z
+make_override 0x2f8 + test_adj, ?SetAttributesFromSidl@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXPEAVCParamScreenPiece@3@@Z
+make_override 0x300 + test_adj, ?OnReloadSidl@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXXZ
+make_override 0x308 + test_adj, ?HasActivatedFirstTimeAlert@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBA_NXZ
+make_override 0x310 + test_adj, ?SetHasActivatedFirstTimeAlert@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
+make_override 0x318 + test_adj, ?GetMinClientSize@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAAEBVCXSize@3@XZ
+make_override 0x320 + test_adj, ?GetMaxClientSize@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAAEBVCXSize@3@XZ
+make_override 0x328 + test_adj, ?GetActiveEditWnd@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEBAPEAVCEditWnd@3@XZ
+make_override 0x330 + test_adj, ?UpdateLayout@?$CXWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAX_N@Z
 
 
 ; CSidlScreenWnd virtual functions
-make_override 0x338, ?Unknown0x330@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXPEBD_N@Z
-make_override 0x340, ?OnZone@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHXZ
-make_override 0x348, ?OnPreZone@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHXZ
-make_override 0x350, ?LoadIniInfo@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXXZ
-make_override 0x358, ?StoreIniInfo@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXXZ
-make_override 0x360, ?AsSidlScreenWnd@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAPEAVCSidlScreenWnd@3@XZ
-make_override 0x368, ?GetScreenWndType@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAA_NXZ
+make_override 0x338 + test_adj, ?Unknown0x330@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXPEBD_N@Z
+make_override 0x340 + test_adj, ?OnZone@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHXZ
+make_override 0x348 + test_adj, ?OnPreZone@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAHXZ
+make_override 0x350 + test_adj, ?LoadIniInfo@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXXZ
+make_override 0x358 + test_adj, ?StoreIniInfo@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAXXZ
+make_override 0x360 + test_adj, ?AsSidlScreenWnd@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAAPEAVCSidlScreenWnd@3@XZ
+make_override 0x368 + test_adj, ?GetScreenWndType@?$CSidlScreenWndTrampoline@VCFindLocationWnd@eqlib@@@detail@eqlib@@UEAA_NXZ
