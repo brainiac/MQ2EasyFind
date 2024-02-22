@@ -7,6 +7,11 @@ FindLocations:
                     targetZone: natimbi
                 -   keyword: Nedaria's Landing
                     targetZone: nedaria
+    akheva:
+        -   type: ZoneConnection
+            location: [-1489, -70, 19]
+            targetZone: maiden
+            identifier: 2
     akhevatwo:
         -   type: ZoneConnection
             location: [-1449.92, 125.33, 19]
@@ -185,6 +190,14 @@ FindLocations:
             keyword: Travel to Timorous Deep
             targetZone: timorous
             expansion: Kunark
+    charasistwo:
+        -   type: ZoneConnection
+            location: [-464.37, -294.15, -16.26]
+            targetZone: charasisb
+        -   type: ZoneConnection
+            switch: OBJ_TELEPORTSTEP
+            location: [-39, -802.84, -7.25]
+            targetZone: overtheretwo
     cityofbronze:
         -   type: ZoneConnection
             location: [-950, -2825, 52]
@@ -799,16 +812,19 @@ FindLocations:
             targetZone: elddar              
     maiden:
         -   type: ZoneConnection
-            location: [-2290, 95, -160]
-            targetZone: akheva
-            identifier: 2
-        -   type: ZoneConnection
-            location: [-2310, 235, -160]
+            location: [-2290, 70, -160]
             targetZone: akheva
             identifier: 1
         -   type: ZoneConnection
+            location: [-2339, 246, -160]
+            targetZone: akheva
+            identifier: 2
+        -   type: ZoneConnection
             location: [-404, -2331, -156]
             targetZone: umbral
+        -   type: ZoneConnection
+            location: [1008, 2148, -234]
+            targetZone: dawnshroud
     maidentwo:
         -   type: ZoneConnection
             location: [-1855, 53, -96]
@@ -1101,7 +1117,7 @@ FindLocations:
     overtheretwo:
         -   type: ZoneConnection
             switch: 6
-            targetZone: charasis
+            targetZone: charasisb
         -   type: ZoneConnection
             location: [24, 2575, 21]
             targetZone: skyfiretwo
@@ -1443,7 +1459,7 @@ FindLocations:
             targetZone: erudsxing
     qeynos2:
         -   type: ZoneConnection
-            location: [1410.50, 440.50, 4.37]
+            location: [1405.50, 440.50, 4.37]
             targetZone: qeytoqrg
             identifier: 1
         -   type: ZoneConnection
@@ -1615,7 +1631,7 @@ FindLocations:
             targetZone: Marus Seru
     steamfontmts:
         -   type: ZoneConnection
-            location: [-1085, -1080, -15]
+            location: [-1084.41, -1084.49, -16.74]
             targetZone: argath
             expansion: Veil of Alaris
     steppes:
@@ -1991,6 +2007,14 @@ FindLocations:
             location: [1640, -3970, 20]
             targetZone: fieldofbone
             identifier: 2
+    weddingchapel:
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: poknowledge
+    weddingchapeldark:
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: poknowledge
     westkorlach:
         -   type: ZoneConnection
             location: [-1578, -794, 362]
