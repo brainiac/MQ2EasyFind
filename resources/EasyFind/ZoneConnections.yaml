@@ -799,17 +799,6 @@ FindLocations:
         -   type: ZoneConnection
             targetZone: dragonscale
             remove: true
-    laurioninn:
-        -   type: ZoneConnection
-            switch: 13
-            name: 'Plane of Mischief'
-            location: [-875.93, -88.46, 27.71]
-            targetZone: mischiefplane
-        -   type: ZoneConnection
-            switch: 16
-            name: 'Elddar Forest'
-            location: [-854.78, -166.18, 27.71]
-            targetZone: elddar              
     maiden:
         -   type: ZoneConnection
             location: [-2290, 70, -160]
