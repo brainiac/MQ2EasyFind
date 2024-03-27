@@ -1974,6 +1974,10 @@ FindLocations:
                     mq.TLO.Window('LargeDialogWindow/LDW_YesButton').LeftMouseUp()
                 end
             targetZone: crescent
+    twilight:
+        -   type: ZoneConnection
+            location: [-37, -2000, 92]
+            targetZone: katta
     umbral:
         -   type: ZoneConnection
             location: [-1901.99, -742.78, 152.93]
