@@ -1309,7 +1309,6 @@ FindLocations:
             expansion: Night of Shadows
         -   type: ZoneConnection
             targetZone: shadeweaver
-            name: 'Shar Vahl'
             switch: 14
             script: |
                 -- FIXME: Before House of Thule opens
