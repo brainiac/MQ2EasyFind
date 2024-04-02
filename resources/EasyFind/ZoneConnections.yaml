@@ -867,6 +867,11 @@ FindLocations:
         -   type: ZoneConnection
             switch: 13
             targetZone: everfrost
+    mischiefplane:
+        -   type: ZoneConnection
+            location: [-1024.16, -357.87, 95.34]
+            switch: 226
+            targetZone: cobaltscar
     mistmoore:
         -   type: ZoneConnection
             location: [-243.779, 357.845, -149.34]
