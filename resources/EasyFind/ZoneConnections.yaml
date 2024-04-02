@@ -510,7 +510,7 @@ FindLocations:
             location: [855, 1935, -267]
             targetZone: acrylia
         -   type: ZoneConnection
-            location: [1700, -690, 63]
+            location: [1700, -690, 69]
             targetZone: tenebrous
     grobb:
         -   type: ZoneConnection
