@@ -510,7 +510,7 @@ FindLocations:
             location: [855, 1935, -267]
             targetZone: acrylia
         -   type: ZoneConnection
-            location: [1700, -690, 63]
+            location: [1700, -690, 69]
             targetZone: tenebrous
     grobb:
         -   type: ZoneConnection
@@ -867,6 +867,11 @@ FindLocations:
         -   type: ZoneConnection
             switch: 13
             targetZone: everfrost
+    mischiefplane:
+        -   type: ZoneConnection
+            location: [-1024.16, -357.87, 95.34]
+            switch: 226
+            targetZone: cobaltscar
     mistmoore:
         -   type: ZoneConnection
             location: [-243.779, 357.845, -149.34]
@@ -1735,6 +1740,10 @@ FindLocations:
         -   type: ZoneConnection
             switch: 7
             targetZone: kattacastrum
+    thegrey:
+        -   type: ZoneConnection
+            location: [74.49, -14.25, -47.87]
+            targetZone: ssratemple
     thevoida:
         -   type: ZoneConnection
             location: [-181.03, -91.57, 27.76]
