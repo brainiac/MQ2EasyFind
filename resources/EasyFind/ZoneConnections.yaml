@@ -683,6 +683,10 @@ FindLocations:
             name: '#Translocator Kurione'
             keyword: travel to North Ro
             targetZone: northro
+        -   type: ZoneConnection
+            location: [1722.61, 2864.66, 117.31]
+            switch: 13
+            targetZone: frozenshadow
     innothuleb:
         -   type: ZoneConnection
             location: [-2350, -1190, 10]
