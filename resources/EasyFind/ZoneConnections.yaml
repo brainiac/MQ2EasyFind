@@ -1752,6 +1752,9 @@ FindLocations:
         -   type: ZoneConnection
             location: [74.49, -14.25, -47.87]
             targetZone: ssratemple
+        -   type: ZoneConnection
+            location: [-2204.817, 286.237, -33.009]
+            targetZone: scarlet
     thevoida:
         -   type: ZoneConnection
             location: [-181.03, -91.57, 27.76]
