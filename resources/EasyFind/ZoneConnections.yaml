@@ -1580,7 +1580,7 @@ FindLocations:
             targetZone: lceanium
     shadeweaver:
         -   type: ZoneConnection
-            location: [3687, 351.79, -320.94]
+            location: [2541, -529.16, -385.09]
             targetZone: paludal
     sharvahl:
         -   type: ZoneConnection
