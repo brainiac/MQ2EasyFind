@@ -948,7 +948,7 @@ FindLocations:
             destinations:
                 -   keyword: Abysmal Sea
                     targetZone: abysmal
-                -   keyword: Nedaria's Landing
+                -   keyword: Nedaria
                     targetZone: nedaria
         -   type: Translocator
             name: '#Madronoa'
