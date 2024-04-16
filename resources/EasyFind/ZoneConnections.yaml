@@ -683,6 +683,10 @@ FindLocations:
             name: '#Translocator Kurione'
             keyword: travel to North Ro
             targetZone: northro
+        -   type: ZoneConnection
+            location: [1722.61, 2864.66, 117.31]
+            switch: 13
+            targetZone: frozenshadow
     innothuleb:
         -   type: ZoneConnection
             location: [-2350, -1190, 10]
@@ -1574,6 +1578,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [-3129, -1235, -292]
             targetZone: lceanium
+    shadeweaver:
+        -   type: ZoneConnection
+            location: [2541, -529.16, -385.09]
+            targetZone: paludal
     sharvahl:
         -   type: ZoneConnection
             location: [1680, -470, -212.24]
@@ -1744,6 +1752,9 @@ FindLocations:
         -   type: ZoneConnection
             location: [74.49, -14.25, -47.87]
             targetZone: ssratemple
+        -   type: ZoneConnection
+            location: [-2204.817, 286.237, -33.009]
+            targetZone: scarlet
     thevoida:
         -   type: ZoneConnection
             location: [-181.03, -91.57, 27.76]
