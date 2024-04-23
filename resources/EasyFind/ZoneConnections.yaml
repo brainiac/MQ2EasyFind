@@ -1574,6 +1574,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [281.88, 133.17, 5.06]
             targetZone: mistythicket
+    scarlet:
+        -   type: ZoneConnection
+            location: [-1092.84, -1947.70, -102.18]
+            targetZone: twilight
     scorchedwoods:
         -   type: ZoneConnection
             location: [-3129, -1235, -292]
