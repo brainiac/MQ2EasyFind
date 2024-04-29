@@ -1515,6 +1515,10 @@ FindLocations:
         -   type: ZoneConnection
             switch: 76
             targetZone: grelleth
+    riftseekers:
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: provinggrounds
     rivervale:
         -   type: ZoneConnection
             location: [-86.14, 100, 4.06]
