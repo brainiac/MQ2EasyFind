@@ -755,6 +755,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [4325, 1190, 47]
             targetZone: warslikswood
+    lakerathe:
+        -   type: ZoneConnection
+            location: [2719.86, -2509.92, 1.75]
+            targetZone: rathemtn
     lavastorm:
         -   type: ZoneConnection
             location: [1113.98, 1082.89, -79.32]
