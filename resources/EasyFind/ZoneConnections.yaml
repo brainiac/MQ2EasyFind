@@ -755,6 +755,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [4325, 1190, 47]
             targetZone: warslikswood
+    lakerathe:
+        -   type: ZoneConnection
+            location: [2719.86, -2509.92, 1.75]
+            targetZone: rathemtn
     lavastorm:
         -   type: ZoneConnection
             location: [1113.98, 1082.89, -79.32]
@@ -1515,6 +1519,10 @@ FindLocations:
         -   type: ZoneConnection
             switch: 76
             targetZone: grelleth
+    riftseekers:
+        -   type: ZoneConnection
+            switch: 1
+            targetZone: provinggrounds
     rivervale:
         -   type: ZoneConnection
             location: [-86.14, 100, 4.06]
@@ -1574,6 +1582,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [281.88, 133.17, 5.06]
             targetZone: mistythicket
+    scarlet:
+        -   type: ZoneConnection
+            location: [-1092.84, -1947.70, -102.18]
+            targetZone: twilight
     scorchedwoods:
         -   type: ZoneConnection
             location: [-3129, -1235, -292]
@@ -1753,7 +1765,7 @@ FindLocations:
             location: [74.49, -14.25, -47.87]
             targetZone: ssratemple
         -   type: ZoneConnection
-            location: [-2204.817, 286.237, -33.009]
+            location: [570.62, -2259.63, 3.70]
             targetZone: scarlet
     thevoida:
         -   type: ZoneConnection
