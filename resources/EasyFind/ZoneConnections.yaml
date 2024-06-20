@@ -1531,7 +1531,6 @@ FindLocations:
         -   type: ZoneConnection
             switch: OBJ_RUB_DOOR
             targetZone: sarithcity
-            identifier: 5
     ruja:
         -   type: ZoneConnection
             location: [-119.61, 800.72, -95.09]
@@ -1591,7 +1590,6 @@ FindLocations:
         -   type: ZoneConnection
             switch: OBJ_RUBAK_DOOR
             targetZone: rubak
-            identifier: 143
     scarlet:
         -   type: ZoneConnection
             location: [-1092.84, -1947.70, -102.18]
