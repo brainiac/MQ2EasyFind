@@ -755,10 +755,6 @@ FindLocations:
         -   type: ZoneConnection
             location: [4325, 1190, 47]
             targetZone: warslikswood
-    lakerathe:
-        -   type: ZoneConnection
-            location: [2719.86, -2509.92, 1.75]
-            targetZone: rathemtn
     lavastorm:
         -   type: ZoneConnection
             location: [1113.98, 1082.89, -79.32]
@@ -1519,18 +1515,15 @@ FindLocations:
         -   type: ZoneConnection
             switch: 76
             targetZone: grelleth
-    riftseekers:
+    rubak:
         -   type: ZoneConnection
-            switch: 1
-            targetZone: provinggrounds
+            targetZone: sarithcity
+            location: [34.02, -62.08, 527.94]
+            switch: OBJ_RUB_DOOR
     rivervale:
         -   type: ZoneConnection
             location: [-86.14, 100, 4.06]
             targetZone: mistythicket
-    rubak:
-        -   type: ZoneConnection
-            switch: OBJ_RUB_DOOR
-            targetZone: sarithcity
     ruja:
         -   type: ZoneConnection
             location: [-119.61, 800.72, -95.09]
@@ -1588,12 +1581,9 @@ FindLocations:
             targetZone: mistythicket
     sarithcity:
         -   type: ZoneConnection
-            switch: OBJ_RUBAK_DOOR
             targetZone: rubak
-    scarlet:
-        -   type: ZoneConnection
-            location: [-1092.84, -1947.70, -102.18]
-            targetZone: twilight
+            location: [-1155.83, -1202.23, 26.07]
+            switch: OBJ_RUBAK_DOOR
     scorchedwoods:
         -   type: ZoneConnection
             location: [-3129, -1235, -292]
@@ -1773,7 +1763,7 @@ FindLocations:
             location: [74.49, -14.25, -47.87]
             targetZone: ssratemple
         -   type: ZoneConnection
-            location: [570.62, -2259.63, 3.70]
+            location: [-2204.817, 286.237, -33.009]
             targetZone: scarlet
     thevoida:
         -   type: ZoneConnection
