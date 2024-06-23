@@ -1527,6 +1527,11 @@ FindLocations:
         -   type: ZoneConnection
             location: [-86.14, 100, 4.06]
             targetZone: mistythicket
+    rubak:
+        -   type: ZoneConnection
+            targetZone: sarithcity
+            location: [34.02, -62.08, 527.94]
+            switch: OBJ_RUB_DOOR
     ruja:
         -   type: ZoneConnection
             location: [-119.61, 800.72, -95.09]
@@ -1582,6 +1587,11 @@ FindLocations:
         -   type: ZoneConnection
             location: [281.88, 133.17, 5.06]
             targetZone: mistythicket
+    sarithcity:
+        -   type: ZoneConnection
+            targetZone: rubak
+            location: [-1155.83, -1202.23, 26.07]
+            switch: OBJ_RUBAK_DOOR
     scarlet:
         -   type: ZoneConnection
             location: [-1092.84, -1947.70, -102.18]
