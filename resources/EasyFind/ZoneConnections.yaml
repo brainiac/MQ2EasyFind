@@ -1594,6 +1594,10 @@ FindLocations:
         -   type: ZoneConnection
             location: [2541, -529.16, -385.09]
             targetZone: paludal
+    shadeweavertwo:
+        -   type: ZoneConnection
+            switch: 2
+            targetZone: poknowledge
     sharvahl:
         -   type: ZoneConnection
             location: [1680, -470, -212.24]
