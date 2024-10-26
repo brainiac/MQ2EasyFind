@@ -68,6 +68,7 @@ public:
 	const std::string& GetConfigDir() const { return m_easyfindDir; }
 
 	void Load(std::string_view customFile = {});
+	void LoadOverride(std::string_view customFile);
 	void LoadFindableLocations();
 
 	void ReloadFindableLocations(std::string_view customFile = {});
@@ -83,12 +84,15 @@ public:
 private:
 	std::string m_easyfindDir;
 	YAML::Node m_zoneConnectionsConfig;
+	YAML::Node m_zoneConnectionsOverrideConfig;
 
 	bool m_transferTypesLoaded = false;
 	bool m_zoneDataLoaded = false;
 
 	// Loaded findable locations
 	FindableLocationsMap m_findableLocations;
+
+	void LoadFindableLocations_Internal(YAML::Node zoneConnectionsConfig);
 };
 
 extern ZoneConnections* g_zoneConnections;

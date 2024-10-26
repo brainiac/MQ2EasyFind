@@ -252,6 +252,37 @@ ZoneConnections::~ZoneConnections()
 {
 }
 
+void ZoneConnections::LoadOverride(std::string_view customFile)
+{
+	if (customFile.empty())
+		customFile = "ZoneConnections_Override.yaml";
+
+	std::string configFile = (fs::path(m_easyfindDir) / customFile).string();
+
+	if (!fs::exists(configFile))
+	{
+		// config file does not exist
+		m_zoneConnectionsOverrideConfig = {};
+		return;
+	}
+
+	try
+	{
+		m_zoneConnectionsOverrideConfig = YAML::LoadFile(configFile);
+	}
+	catch (const YAML::ParserException& ex)
+	{
+		// failed to parse, notify and return
+		SPDLOG_ERROR("Failed to parse YAML in {}: {}", configFile, ex.what());
+		return;
+	}
+	catch (const YAML::BadFile&)
+	{
+		// if we can't read the file, then ignore
+		return;
+	}
+}
+
 void ZoneConnections::Load(std::string_view customFile)
 {
 	if (customFile.empty())
@@ -281,6 +312,8 @@ void ZoneConnections::Load(std::string_view customFile)
 		// if we can't read the file, then try to write it with an empty config
 		return;
 	}
+
+	LoadOverride({});
 }
 
 void ZoneConnections::ReloadFindableLocations(std::string_view customFile)
@@ -301,12 +334,20 @@ void ZoneConnections::LoadFindableLocations()
 
 	FindableLocationsMap locationMap;
 
+	LoadFindableLocations_Internal(m_zoneConnectionsConfig);
+	LoadFindableLocations_Internal(m_zoneConnectionsOverrideConfig);
+
+	FindWindow_LoadZoneConnections();
+}
+
+void ZoneConnections::LoadFindableLocations_Internal(YAML::Node zoneConnectionsConfig)
+{
 	try
 	{
 		ParsedFindableLocationsMap newLocations;
 
 		// Load objects from the FindLocations block
-		YAML::Node addFindLocations = m_zoneConnectionsConfig["FindLocations"];
+		YAML::Node addFindLocations = zoneConnectionsConfig["FindLocations"];
 		if (addFindLocations.IsMap())
 		{
 			newLocations = addFindLocations.as<ParsedFindableLocationsMap>();
@@ -325,17 +366,17 @@ void ZoneConnections::LoadFindableLocations()
 			data.findableLocations.erase(
 				std::remove_if(data.findableLocations.begin(), data.findableLocations.end(),
 					[&](const ParsedFindableLocation& pfl)
+			{
+				if (pfl.remove)
 				{
-					if (pfl.remove)
-					{
-						if (pfl.zoneId != 0)
-							data.removedConnections.push_back(pfl.zoneId);
+					if (pfl.zoneId != 0)
+						data.removedConnections.push_back(pfl.zoneId);
 
-						return true;
-					}
+					return true;
+				}
 
-					return false;
-				}), data.findableLocations.end());
+				return false;
+			}), data.findableLocations.end());
 
 			// Load any removed zones into the zone guide.
 			if (pZoneGuideWnd && !data.removedConnections.empty())
@@ -360,8 +401,6 @@ void ZoneConnections::LoadFindableLocations()
 		// failed to parse, notify and return
 		SPDLOG_ERROR("Failed to load zone connections: {}", ex.what());
 	}
-
-	FindWindow_LoadZoneConnections();
 }
 
 void ZoneConnections::CreateFindableLocations(FindableLocations& findableLocations, std::string_view shortName)
