@@ -1991,6 +1991,12 @@ FindLocations:
                     targetZone: southro
                 -   keyword: travel to Overthere
                     targetZone: overthere
+    toe:
+        -   type: Translocator
+            name: Brust Lraydo
+            keyword: get on
+            targetZone: hodstock
+            expansion: The Outer Brood
     torgiran:
         -   type: ZoneConnection
             location: [-364.21, -625, -0.50]
