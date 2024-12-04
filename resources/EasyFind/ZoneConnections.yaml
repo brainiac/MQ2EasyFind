@@ -664,6 +664,12 @@ FindLocations:
         -   type: ZoneConnection
             location: [179.58, -1051.35, -4.00]
             targetZone: nadox
+    hodstock:
+        -   type: Translocator
+            name: Torin
+            keyword: get on
+            targetZone: toe
+            expansion: The Outer Brood
     hollowshade:
         -   type: ZoneConnection
             location: [1180, 3270, 111.97]
