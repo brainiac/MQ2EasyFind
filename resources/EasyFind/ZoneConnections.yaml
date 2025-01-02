@@ -994,6 +994,27 @@ FindLocations:
         -   type: ZoneConnection
             location: [-199.16, -1868, 253.66]
             targetZone: jaggedpine
+    nektulos:
+        -   type: ZoneConnection
+            location: [-1019, -1010, -23]
+            targetZone: hodstock
+    neighborhood:
+        -   type: ZoneConnection
+            switch: 134
+            targetZone: guildlobby
+    neriakc:
+        -   type: ZoneConnection
+            location: [909, -1770, -70]
+            targetZone: neriakd
+    netherbian:
+        -   type: ZoneConnection
+            location: [-735, -53, 2]
+            targetZone: dawnshroud
+            identifier: 1
+        -   type: ZoneConnection
+            location: [2000, -435, -62]
+            targetZone: nexus
+            identifier: 1
     nexus:
         -   type: ZoneConnection
             targetZone: lceanium
@@ -1021,23 +1042,6 @@ FindLocations:
                     mq.cmd('/nav loc 0.50 -4.1 -30.25')
                 end
             expansion: Terror of Luclin
-    neighborhood:
-        -   type: ZoneConnection
-            switch: 134
-            targetZone: guildlobby
-    neriakc:
-        -   type: ZoneConnection
-            location: [909, -1770, -70]
-            targetZone: neriakd
-    netherbian:
-        -   type: ZoneConnection
-            location: [-735, -53, 2]
-            targetZone: dawnshroud
-            identifier: 1
-        -   type: ZoneConnection
-            location: [2000, -435, -62]
-            targetZone: nexus
-            identifier: 1
     northkarana:
         -   type: ZoneConnection
             location: [20, -3200, -33.59]
