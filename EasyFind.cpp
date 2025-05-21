@@ -340,46 +340,47 @@ void Command_TravelTo(SPAWNINFO* pSpawn, char* szLine)
 	ZonePath_SetActive(request, true);
 }
 
-class MQ2EasyFind* pMQ2EasyFind = nullptr;
-class MQ2EasyFind : public MQ2Type
+class EasyFindType : public MQ2Type
 {
 public:
 	enum Members {
 		Active
 	};
 
-	MQ2EasyFind() :MQ2Type("EasyFind")
+	EasyFindType() : MQ2Type("EasyFind")
 	{
 		TypeMember(Active);
 	}
 
 	virtual bool GetMember(MQVarPtr VarPtr, const char* Member, char* Index, MQTypeVar& Dest) override
 	{
-		MQTypeMember* pMember = MQ2EasyFind::FindMember(Member);
+		MQTypeMember* pMember = FindMember(Member);
 		if (!pMember)
 			return false;
-		if (!pLocalPlayer)
-			return false;
-		switch ((Members)pMember->ID) {
+
+		switch (static_cast<Members>(pMember->ID))
+		{
 		case Active:
-			Dest.Int = ZonePath_IsActive() ? 1 : 0;
-			Dest.Type = mq::datatypes::pIntType;
+			Dest.Set(ZonePath_IsActive());
+			Dest.Type = mq::datatypes::pBoolType;
 			return true;
+
 		default:
 			break;
 		}
+
 		return false;
 	}
 
+	static bool data(const char*, MQTypeVar& Dest);
 };
+EasyFindType* pEasyFindType = nullptr;
 
-bool MQ2EasyFindData(const char* szIndex, MQTypeVar& Dest)
+bool EasyFindType::data(const char*, MQTypeVar& Dest)
 {
-	Dest.DWord = 1;
-	Dest.Type = pMQ2EasyFind;
+	Dest.Type = pEasyFindType;
 	return true;
 }
-
 
 PLUGIN_API void InitializePlugin()
 {
@@ -397,8 +398,8 @@ PLUGIN_API void InitializePlugin()
 	Lua_Initialize();
 	FindWindow_Initialize();
 
-	AddMQ2Data("EasyFind", MQ2EasyFindData);
-	pMQ2EasyFind = new MQ2EasyFind;
+	pEasyFindType = new EasyFindType;
+	AddTopLevelObject("EasyFind", EasyFindType::data);
 
 	AddCommand("/easyfind", Command_EasyFind, false, true, true);
 	AddCommand("/travelto", Command_TravelTo, false, true, true);
@@ -418,6 +419,9 @@ PLUGIN_API void ShutdownPlugin()
 
 	delete g_configuration;
 	delete g_zoneConnections;
+
+	delete pEasyFindType;
+	RemoveTopLevelObject("EasyFind");
 }
 
 PLUGIN_API void OnCleanUI()
