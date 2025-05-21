@@ -131,3 +131,4 @@ void ZonePath_NavCanceled(bool message);
 void ZonePath_FollowActive();
 void ZonePath_Stop();
 void ZonePath_DumpConnections();
+bool ZonePath_IsActive();
