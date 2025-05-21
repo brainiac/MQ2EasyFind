@@ -29,7 +29,7 @@ int FindTransferIndexByName(std::string_view name)
 
 bool ZonePath_IsActive()
 {
-	return s_travelToActive || !s_activeZonePathRequest.zonePath.empty();
+	return s_travelToActive;
 }
 
 // Generates a path to the zone by utilizing data from the ZoneGuideManagerClient.
