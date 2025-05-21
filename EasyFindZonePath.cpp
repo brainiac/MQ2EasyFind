@@ -27,6 +27,11 @@ int FindTransferIndexByName(std::string_view name)
 	return -1;
 }
 
+bool ZonePath_IsActive()
+{
+	return s_travelToActive;
+}
+
 // Generates a path to the zone by utilizing data from the ZoneGuideManagerClient.
 std::vector<ZonePathNode> ZonePath_GeneratePath(EQZoneIndex fromZone, EQZoneIndex toZone,
 	std::string& outputMessage)
