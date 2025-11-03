@@ -384,7 +384,7 @@ bool EasyFindType::data(const char*, MQTypeVar& Dest)
 
 PLUGIN_API void InitializePlugin()
 {
-	WriteChatf(PLUGIN_MSG "v%s \arBETA\ax by brainiac (\aohttps://github.com/brainiac/MQ2EasyFind\ax)", EASYFIND_PLUGIN_VERSION);
+	WriteChatf(PLUGIN_MSG "v%s by brainiac (\aohttps://github.com/brainiac/MQ2EasyFind\ax)", EASYFIND_PLUGIN_VERSION);
 	WriteChatf(PLUGIN_MSG "Type \ag/easyfind help\ax for more info.");
 
 	g_configuration = new EasyFindConfiguration();
