@@ -943,7 +943,7 @@ FindLocations:
             targetZone: lfaydark
     moors:
         -   type: ZoneConnection
-            location: [-1754, -886, 38]
+            location: [-445, -3772, 163.18]
             targetZone: stonehive
     mseru:
         -   type: ZoneConnection
